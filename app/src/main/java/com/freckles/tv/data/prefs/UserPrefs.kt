@@ -26,6 +26,9 @@ data class Profile(
     val favorites: List<String> = emptyList(),
     /** Fino a 5 videogiochi preferiti, nel formato "g:<id gioco>". */
     val gameFavorites: List<String> = emptyList(),
+    /** Cartella (SAF tree URI) del backup automatico giornaliero; null = disattivato. */
+    val autoBackupUri: String? = null,
+    val lastAutoBackup: Long? = null,
 )
 
 class UserPrefs(private val context: Context) {
@@ -38,6 +41,8 @@ class UserPrefs(private val context: Context) {
         val accent = stringPreferencesKey("theme_accent")
         val favs = stringPreferencesKey("top_favorites")
         val gameFavs = stringPreferencesKey("top_game_favorites")
+        val backupUri = stringPreferencesKey("auto_backup_uri")
+        val lastBackup = androidx.datastore.preferences.core.longPreferencesKey("last_auto_backup")
     }
 
     val profile: Flow<Profile> = context.store.data.map { p ->
@@ -50,6 +55,8 @@ class UserPrefs(private val context: Context) {
             accent = p[K.accent] ?: "violet",
             favorites = p[K.favs]?.split(",")?.filter { it.isNotBlank() } ?: emptyList(),
             gameFavorites = p[K.gameFavs]?.split(",")?.filter { it.isNotBlank() } ?: emptyList(),
+            autoBackupUri = p[K.backupUri],
+            lastAutoBackup = p[K.lastBackup],
         )
     }
 
@@ -63,6 +70,8 @@ class UserPrefs(private val context: Context) {
     suspend fun setThemeMode(mode: String) = edit { it[K.mode] = mode }
     suspend fun setAccent(id: String) = edit { it[K.accent] = id }
     suspend fun setFavorites(list: List<String>) = edit { it[K.favs] = list.take(5).joinToString(",") }
+    suspend fun setAutoBackupUri(uri: String?) = edit { if (uri == null) it.remove(K.backupUri) else it[K.backupUri] = uri }
+    suspend fun setLastAutoBackup(time: Long) = edit { it[K.lastBackup] = time }
     suspend fun setGameFavorites(list: List<String>) = edit { it[K.gameFavs] = list.take(5).joinToString(",") }
 }
 

@@ -17,5 +17,6 @@ class FreckleApp : Application() {
         super.onCreate()
         com.freckles.tv.notify.NewSeasonWorker.schedule(this)
         repository.backfillGenres()
+        com.freckles.tv.backup.AutoBackupWorker.schedule(this)
     }
 }

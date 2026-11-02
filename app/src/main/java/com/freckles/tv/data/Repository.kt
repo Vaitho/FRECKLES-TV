@@ -287,6 +287,8 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
         return found
     }
 
+    suspend fun exportJson(): String = importer.export()
+
     /** Genera il backup e lo consegna a `write` (che lo scrive sul file scelto). */
     fun startExport(write: (String) -> Unit) = launchReporting("Esportazione non riuscita") {
         write(importer.export())

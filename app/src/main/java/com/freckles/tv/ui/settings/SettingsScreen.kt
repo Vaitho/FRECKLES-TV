@@ -30,12 +30,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.ui.common.LocalRepo
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
     val repo = LocalRepo.current
     val ctx = LocalContext.current
     val state by repo.importer.state.collectAsStateWithLifecycle()
+    val prefs = (ctx.applicationContext as com.freckles.tv.FreckleApp).prefs
+    val profile by prefs.profile.collectAsStateWithLifecycle(initialValue = com.freckles.tv.data.prefs.Profile())
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
+        if (uri != null) {
+            ctx.contentResolver.takePersistableUriPermission(
+                uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+            scope.launch {
+                prefs.setAutoBackupUri(uri.toString())
+                com.freckles.tv.backup.AutoBackupWorker.runNow(ctx)
+            }
+        }
+    }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri != null) repo.startImport { readText(ctx, uri) }
@@ -69,6 +84,29 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         OutlinedButton(onClick = { exporter.launch("freckles-tv-backup.json") }, modifier = Modifier.fillMaxWidth()) {
             Text("Esporta backup JSON")
+        }
+
+        Text("Backup automatico", style = MaterialTheme.typography.titleMedium)
+        val folder = profile.autoBackupUri
+        Text(
+            if (folder == null) "Disattivato. Scegli una cartella (meglio se sincronizzata, es. Google Drive): ogni giorno ci salvo un backup e tengo gli ultimi 7."
+            else "Ogni giorno in: ${com.freckles.tv.backup.AutoBackupWorker.folderLabel(folder)}" +
+                (profile.lastAutoBackup?.let { "\nUltimo backup: " + java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(it)) } ?: "\nPrimo backup in corso…"),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { folderPicker.launch(null) }, modifier = Modifier.weight(1f)) {
+                Text(if (folder == null) "Scegli cartella" else "Cambia cartella")
+            }
+            if (folder != null) {
+                OutlinedButton(onClick = { com.freckles.tv.backup.AutoBackupWorker.runNow(ctx) }, modifier = Modifier.weight(1f)) { Text("Esegui ora") }
+            }
+        }
+        if (folder != null) {
+            androidx.compose.material3.TextButton(onClick = {
+                runCatching { ctx.contentResolver.releasePersistableUriPermission(Uri.parse(folder), android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
+                scope.launch { prefs.setAutoBackupUri(null) }
+            }) { Text("Disattiva backup automatico") }
         }
 
         Text("Notifiche", style = MaterialTheme.typography.titleMedium)
