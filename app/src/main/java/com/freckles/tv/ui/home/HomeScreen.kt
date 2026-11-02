@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -44,6 +45,7 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
     val trending by produceState<List<SearchItem>>(emptyList()) {
         value = runCatching { repo.trending() }.getOrDefault(emptyList())
     }
+    val pending by repo.pending.collectAsStateWithLifecycle()
     val showById = shows.associateBy { it.id }
     val hour = LocalTime.now().hour
     val greeting = when {
@@ -114,13 +116,16 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
                         val movieId = movies.firstOrNull { it.tmdbId == item.id }?.id.takeIf { item.mediaType == "movie" }
                         val inLibrary = showId != null || movieId != null
                         var menu by remember { mutableStateOf(false) }
+                        val adding = repo.pendingKey(item) in pending
                         PosterCard(
                             title = item.displayTitle,
                             posterPath = item.posterPath,
                             subtitle = item.year,
                             modifier = Modifier.width(130.dp),
                             corner = {
-                                if (!inLibrary) Box {
+                                if (adding) Box(Modifier.size(36.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                                    androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)
+                                } else if (!inLibrary) Box {
                                     CornerButton(Icons.Filled.Add, "Aggiungi") { menu = true }
                                     AddMenu(menu, { menu = false }, item.mediaType == "movie") { repo.add(item, it) }
                                 }
@@ -128,7 +133,7 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
                             onClick = {
                                 if (showId != null) onOpenShow(showId)
                                 else if (movieId != null) onOpenMovie(movieId)
-                                else menu = true
+                                else if (!adding) menu = true
                             },
                         )
                     }

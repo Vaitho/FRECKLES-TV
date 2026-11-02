@@ -50,6 +50,7 @@ fun SearchScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
     val vm: SearchViewModel = viewModel(factory = viewModelFactory { initializer { SearchViewModel(repo) } })
     val query by vm.query.collectAsStateWithLifecycle()
     val state by vm.state.collectAsStateWithLifecycle()
+    val pending by repo.pending.collectAsStateWithLifecycle()
     val shows by repo.allShows.collectAsStateWithLifecycle(emptyList())
     val movies by repo.allMovies.collectAsStateWithLifecycle(emptyList())
 
@@ -110,7 +111,9 @@ fun SearchScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            if (inLibrary) {
+                            if (repo.pendingKey(item) in pending) {
+                                CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp), strokeWidth = 3.dp)
+                            } else if (inLibrary) {
                                 Icon(Icons.Filled.CheckCircle, "Già in libreria", tint = MaterialTheme.colorScheme.primary)
                             } else {
                                 var menu by remember { mutableStateOf(false) }

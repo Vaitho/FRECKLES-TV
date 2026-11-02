@@ -11,7 +11,11 @@ import com.freckles.tv.data.remote.TvDetails
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -51,8 +55,18 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi) {
 
     /** `watched` = lo aggiungo come già visto (film visto / tutti gli episodi usciti visti). */
     fun add(item: SearchItem, watched: Boolean = false) {
-        if (item.mediaType == "tv") addShow(item.id, watched) else addMovie(item.id, watched)
+        val key = pendingKey(item)
+        if (key in _pending.value) return
+        _pending.update { it + key }
+        val job = if (item.mediaType == "tv") addShow(item.id, watched) else addMovie(item.id, watched)
+        job.invokeOnCompletion { _pending.update { it - key } }
     }
+
+    /** Titoli la cui aggiunta è ancora in corso (la rete può metterci qualche secondo). */
+    private val _pending = MutableStateFlow<Set<String>>(emptySet())
+    val pending: StateFlow<Set<String>> = _pending
+
+    fun pendingKey(item: SearchItem) = "${item.mediaType}:${item.id}"
 
     fun addShow(tmdbId: Int, watched: Boolean = false) = launchReporting("Impossibile aggiungere la serie") {
         if (shows.byTmdbId(tmdbId) == null) {
@@ -183,8 +197,8 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi) {
     fun deleteShow(id: Long) = launchReporting("Errore") { shows.delete(id) }
     fun deleteMovie(id: Long) = launchReporting("Errore") { movies.delete(id) }
 
-    private fun launchReporting(errorPrefix: String, block: suspend () -> Unit) {
-        scope.launch {
+    private fun launchReporting(errorPrefix: String, block: suspend () -> Unit): Job {
+        return scope.launch {
             runCatching { block() }.onFailure { _messages.tryEmit("$errorPrefix: ${it.message ?: "errore di rete"}") }
         }
     }
