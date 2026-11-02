@@ -43,8 +43,27 @@ interface EpisodeDao {
     @Query("SELECT * FROM episodes WHERE showId = :showId ORDER BY season, number")
     fun observeForShow(showId: Long): Flow<List<EpisodeEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertAll(episodes: List<EpisodeEntity>)
+    /** Inserisce solo gli episodi nuovi: non tocca quelli già presenti (e il loro stato di visione). */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertNew(episodes: List<EpisodeEntity>)
+
+    /** Prossimo episodio da vedere per ogni serie già iniziata. */
+    @Query(
+        """SELECT * FROM episodes e
+           WHERE e.isSpecial = 0 AND e.watched = 0 AND (e.airDate IS NULL OR e.airDate <= :today)
+           AND EXISTS (SELECT 1 FROM episodes w WHERE w.showId = e.showId AND w.watched = 1 AND w.isSpecial = 0)
+           AND NOT EXISTS (SELECT 1 FROM episodes p WHERE p.showId = e.showId AND p.isSpecial = 0
+               AND p.watched = 0 AND (p.airDate IS NULL OR p.airDate <= :today)
+               AND (p.season < e.season OR (p.season = e.season AND p.number < e.number)))"""
+    )
+    fun observeNext(today: String): Flow<List<EpisodeEntity>>
+
+    @Query(
+        """SELECT strftime('%Y-%m', watchedAt / 1000, 'unixepoch') AS month, SUM(runtime) AS minutes
+           FROM episodes WHERE watched = 1 AND isSpecial = 0 AND watchedAt IS NOT NULL
+           GROUP BY month ORDER BY month DESC LIMIT 12"""
+    )
+    fun observeMonthly(): Flow<List<MonthStat>>
 
     @Query("SELECT * FROM episodes WHERE showId = :showId AND season = :season AND number = :number")
     suspend fun find(showId: Long, season: Int, number: Int): EpisodeEntity?

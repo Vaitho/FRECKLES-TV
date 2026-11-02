@@ -69,3 +69,5 @@ data class ShowProgress(
     val watched: Int,
     val total: Int,
 )
+
+data class MonthStat(val month: String, val minutes: Long)

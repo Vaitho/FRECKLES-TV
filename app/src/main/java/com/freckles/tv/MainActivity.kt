@@ -8,13 +8,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.freckles.tv.ui.AppRoot
+import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.onboarding.OnboardingScreen
 import com.freckles.tv.ui.theme.FreckleTheme
 import kotlinx.coroutines.launch
@@ -25,6 +26,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val prefs = (application as FreckleApp).prefs
+        val repository = (application as FreckleApp).repository
 
         setContent {
             FreckleTheme {
@@ -37,9 +39,8 @@ class MainActivity : ComponentActivity() {
                     } else if (name == null) {
                         OnboardingScreen { scope.launch { prefs.setUsername(it) } }
                     } else {
-                        // TODO Fase 3: navigazione Home/Cerca/Libreria/Statistiche.
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Ciao, $name!")
+                        CompositionLocalProvider(LocalRepo provides repository) {
+                            AppRoot(name)
                         }
                     }
                 }
