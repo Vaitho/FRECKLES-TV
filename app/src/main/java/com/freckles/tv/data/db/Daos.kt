@@ -36,10 +36,10 @@ interface ShowDao {
     /** Episodi non special visti / totali per ogni serie. */
     @Query(
         """SELECT showId, SUM(watched) AS watched, COUNT(*) AS total
-           FROM episodes WHERE isSpecial = 0 AND (watched = 1 OR (airDate IS NOT NULL AND airDate <= :today))
+           FROM episodes WHERE isSpecial = 0 AND (watched = 1 OR (airDate IS NOT NULL AND airDate <= date('now', 'localtime')))
            GROUP BY showId"""
     )
-    fun observeProgress(today: String): Flow<List<ShowProgress>>
+    fun observeProgress(): Flow<List<ShowProgress>>
 }
 
 @Dao
@@ -54,13 +54,13 @@ interface EpisodeDao {
     /** Prossimo episodio da vedere per ogni serie già iniziata. */
     @Query(
         """SELECT * FROM episodes e
-           WHERE e.isSpecial = 0 AND e.watched = 0 AND e.airDate IS NOT NULL AND e.airDate <= :today
+           WHERE e.isSpecial = 0 AND e.watched = 0 AND e.airDate IS NOT NULL AND e.airDate <= date('now', 'localtime')
            AND EXISTS (SELECT 1 FROM episodes w WHERE w.showId = e.showId AND w.watched = 1 AND w.isSpecial = 0)
            AND NOT EXISTS (SELECT 1 FROM episodes p WHERE p.showId = e.showId AND p.isSpecial = 0
-               AND p.watched = 0 AND p.airDate IS NOT NULL AND p.airDate <= :today
+               AND p.watched = 0 AND p.airDate IS NOT NULL AND p.airDate <= date('now', 'localtime')
                AND (p.season < e.season OR (p.season = e.season AND p.number < e.number)))"""
     )
-    fun observeNext(today: String): Flow<List<EpisodeEntity>>
+    fun observeNext(): Flow<List<EpisodeEntity>>
 
     @Query(
         """SELECT strftime('%Y-%m', watchedAt / 1000, 'unixepoch') AS month, SUM(runtime) AS minutes

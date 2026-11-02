@@ -60,8 +60,8 @@ fun shimmerBrush(): Brush {
         animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Restart),
         label = "x",
     )
-    val base = MaterialTheme.colorScheme.surfaceContainerHigh
-    val hi = MaterialTheme.colorScheme.surfaceContainerHighest
+    val base = MaterialTheme.colorScheme.surfaceVariant
+    val hi = MaterialTheme.colorScheme.outlineVariant
     return Brush.linearGradient(listOf(base, hi, base), start = Offset(x, 0f), end = Offset(x + 400f, 400f))
 }
 

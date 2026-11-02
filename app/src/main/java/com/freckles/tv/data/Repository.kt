@@ -54,11 +54,11 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
     val allGames = games.observeAll()
     fun observeGame(id: Long) = games.observe(id)
     val finishedGames = games.observeFinishedCount()
-    val progress = shows.observeProgress(LocalDate.now().toString())
+    val progress = shows.observeProgress()
     fun observeShow(id: Long) = shows.observe(id)
     fun observeMovie(id: Long) = movies.observe(id)
     fun observeEpisodes(showId: Long) = episodes.observeForShow(showId)
-    fun observeNext() = episodes.observeNext(LocalDate.now().toString())
+    fun observeNext() = episodes.observeNext()
     val monthly = episodes.observeMonthly()
     val minutesByShow = episodes.observeMinutesByShow()
     val yearly = combine(episodes.observeYearly(), movies.observeYearly()) { a, b ->
@@ -73,7 +73,13 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
     // ---- rete ----
 
     suspend fun search(query: String): List<SearchItem> = api.search(query).results.filterTmdb()
-    suspend fun trending(): List<SearchItem> = api.trending().results.filterTmdb()
+    private var trendingCache: Pair<Long, List<SearchItem>>? = null
+
+    suspend fun trending(): List<SearchItem> {
+        val cached = trendingCache
+        if (cached != null && System.currentTimeMillis() - cached.first < 30 * 60_000) return cached.second
+        return api.trending().results.filterTmdb().also { trendingCache = System.currentTimeMillis() to it }
+    }
     private fun List<SearchItem>.filterTmdb() = filter { it.mediaType == "tv" || it.mediaType == "movie" }
 
     suspend fun preview(type: String, id: Int): PreviewInfo =

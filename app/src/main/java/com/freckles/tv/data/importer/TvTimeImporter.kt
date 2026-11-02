@@ -96,6 +96,7 @@ class TvTimeImporter(
     val state: StateFlow<ImportState> = _state
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+    private val exportJson = Json { encodeDefaults = true }
 
     /** Importa il file; rieseguirlo non duplica nulla e non toglie mai lo stato "visto". */
     suspend fun import(text: String) {
@@ -214,7 +215,7 @@ class TvTimeImporter(
                 finishedAt = g.finishedAt?.let { Instant.ofEpochMilli(it).toString() },
             )
         }
-        return Json { encodeDefaults = true }.encodeToString(Backup.serializer(), Backup(1, shows, movies, games))
+        return exportJson.encodeToString(Backup.serializer(), Backup(1, shows, movies, games))
     }
 
     private suspend fun resolveTmdbId(show: ImportShow): Int? {

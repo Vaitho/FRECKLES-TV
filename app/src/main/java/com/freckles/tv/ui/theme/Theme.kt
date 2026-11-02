@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
@@ -41,9 +42,26 @@ private fun Color.shiftHue(deg: Float): Color {
 
 private fun mix(a: Color, b: Color, t: Float) = lerp(a, b, t)
 
+private fun contrast(a: Color, b: Color): Float {
+    val l1 = a.luminance() + 0.05f
+    val l2 = b.luminance() + 0.05f
+    return maxOf(l1, l2) / minOf(l1, l2)
+}
+
+/** Scurisce l'accento finché ha abbastanza contrasto sullo sfondo chiaro (ambra e simili sono troppo pallidi). */
+private fun readable(accent: Color, bg: Color, minContrast: Float): Color {
+    var t = 0.12f
+    var c = mix(accent, Color.Black, t)
+    while (contrast(c, bg) < minContrast && t < 0.9f) {
+        t += 0.05f
+        c = mix(accent, Color.Black, t)
+    }
+    return c
+}
+
 /** Genera una palette coerente a partire da un solo colore d'accento. */
 fun schemeFor(accent: Color, dark: Boolean): ColorScheme {
-    val secondary = accent.shiftHue(35f)
+    val secondary = accent.shiftHue(-25f + 360f)
     return if (dark) {
         val base = Color(0xFF0F0E14)
         val primary = mix(accent, Color.White, 0.35f)
@@ -72,27 +90,28 @@ fun schemeFor(accent: Color, dark: Boolean): ColorScheme {
             error = Color(0xFFFF8A80),
         )
     } else {
-        val primary = mix(accent, Color.Black, 0.12f)
+        val bg = mix(Color.White, accent, 0.04f)
+        val primary = readable(accent, bg, 4.5f)
         lightColorScheme(
             primary = primary,
             onPrimary = Color.White,
             primaryContainer = mix(accent, Color.White, 0.82f),
             onPrimaryContainer = mix(accent, Color.Black, 0.65f),
-            secondary = mix(secondary, Color.Black, 0.1f),
+            secondary = readable(secondary, bg, 3f),
             onSecondary = Color.White,
             secondaryContainer = mix(accent, Color.White, 0.85f),
             onSecondaryContainer = mix(accent, Color.Black, 0.65f),
-            background = mix(Color.White, accent, 0.04f),
+            background = bg,
             onBackground = Color(0xFF1B1A22),
             surface = mix(Color.White, accent, 0.03f),
             onSurface = Color(0xFF1B1A22),
-            surfaceVariant = mix(Color.White, accent, 0.12f),
+            surfaceVariant = mix(Color.White, accent, 0.16f),
             onSurfaceVariant = Color(0xFF4A4756),
             surfaceContainerLowest = Color.White,
-            surfaceContainerLow = mix(Color.White, accent, 0.04f),
-            surfaceContainer = mix(Color.White, accent, 0.07f),
-            surfaceContainerHigh = mix(Color.White, accent, 0.1f),
-            surfaceContainerHighest = mix(Color.White, accent, 0.14f),
+            surfaceContainerLow = mix(Color.White, accent, 0.06f),
+            surfaceContainer = mix(Color.White, accent, 0.10f),
+            surfaceContainerHigh = mix(Color.White, accent, 0.14f),
+            surfaceContainerHighest = mix(Color.White, accent, 0.19f),
             outline = Color(0xFF7A7685),
             outlineVariant = mix(Color.White, accent, 0.25f),
         )
