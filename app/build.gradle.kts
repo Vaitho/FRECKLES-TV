@@ -27,9 +27,23 @@ android {
         buildConfigField("String", "RAWG_API_KEY", "\"${localProps.getProperty("RAWG_API_KEY", "")}\"")
     }
 
+    // Firma di release: legge keystore e password da local.properties (mai nel repo).
+    val releaseStore = localProps.getProperty("RELEASE_STORE_FILE")
+    signingConfigs {
+        if (releaseStore != null) {
+            create("release") {
+                storeFile = file(releaseStore)
+                storePassword = localProps.getProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")
+                keyPassword = localProps.getProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (releaseStore != null) signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -37,6 +51,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    // Il lint di AGP 8.7 va in crash con il JDK 25 di Android Studio ("IllegalArgumentException: 25.0.4").
+    lint { checkReleaseBuilds = false }
     buildFeatures {
         compose = true
         buildConfig = true
