@@ -172,18 +172,6 @@ fun CheckCircle(checked: Boolean, onToggle: () -> Unit, modifier: Modifier = Mod
     }
 }
 
-/** Es. 3745 min -> "2 giorni 14 ore". Mese = 30 giorni. */
-fun formatDuration(totalMinutes: Long): String {
-    val months = totalMinutes / (60 * 24 * 30)
-    val days = totalMinutes / (60 * 24) % 30
-    val hours = totalMinutes / 60 % 24
-    val parts = buildList {
-        if (months > 0) add("$months ${if (months == 1L) "mese" else "mesi"}")
-        if (days > 0) add("$days ${if (days == 1L) "giorno" else "giorni"}")
-        add("$hours ${if (hours == 1L) "ora" else "ore"}")
-    }
-    return parts.joinToString(" ")
-}
 
 
 /** Menu "aggiungi": da vedere oppure già visto. */

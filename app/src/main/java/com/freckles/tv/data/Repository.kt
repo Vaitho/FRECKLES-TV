@@ -12,6 +12,7 @@ import com.freckles.tv.data.remote.RawgGame
 import com.freckles.tv.data.remote.SearchItem
 import com.freckles.tv.data.remote.TmdbApi
 import com.freckles.tv.data.remote.TvDetails
+import androidx.room.withTransaction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,12 +54,16 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
     val allGames = games.observeAll()
     fun observeGame(id: Long) = games.observe(id)
     val finishedGames = games.observeFinishedCount()
-    val progress = shows.observeProgress()
+    val progress = shows.observeProgress(LocalDate.now().toString())
     fun observeShow(id: Long) = shows.observe(id)
     fun observeMovie(id: Long) = movies.observe(id)
     fun observeEpisodes(showId: Long) = episodes.observeForShow(showId)
     fun observeNext() = episodes.observeNext(LocalDate.now().toString())
     val monthly = episodes.observeMonthly()
+    val minutesByShow = episodes.observeMinutesByShow()
+    val yearly = combine(episodes.observeYearly(), movies.observeYearly()) { a, b ->
+        (a + b).groupBy { it.year }.map { (y, l) -> com.freckles.tv.data.db.YearStat(y, l.sumOf { it.minutes }) }.sortedBy { it.year }
+    }
     val watchedEpisodes = episodes.observeWatchedCount()
     val watchedMovies = movies.observeWatchedCount()
     val totalMinutes = combine(
@@ -184,6 +189,7 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
                 tmdbId = d.id, imdbId = d.imdbId, title = d.title, overview = d.overview,
                 posterPath = d.posterPath, backdropPath = d.backdropPath,
                 runtime = d.runtime?.takeIf { it > 0 } ?: 100, releaseDate = d.releaseDate,
+                genres = d.genres.joinToString(", ") { it.name }.ifBlank { null },
             )
         )
     }
@@ -197,6 +203,7 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
                 tmdbId = d.id, tvdbId = d.externalIds?.tvdbId, imdbId = d.externalIds?.imdbId,
                 title = d.name, overview = d.overview, posterPath = d.posterPath,
                 backdropPath = d.backdropPath, status = d.status, defaultRuntime = rt,
+                genres = d.genres.joinToString(", ") { it.name }.ifBlank { null },
                 knownSeasonCount = d.seasons.count { it.seasonNumber > 0 },
                 knownNextAirDate = d.nextEpisodeToAir?.airDate,
             )
@@ -205,19 +212,42 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
         return id
     }
 
-    /** Scarica tutte le stagioni e inserisce gli episodi mancanti. */
-    suspend fun syncEpisodes(showId: Long, d: TvDetails, defaultRuntime: Int) {
+    /**
+     * Scarica le stagioni e inserisce gli episodi mancanti. Con `onlyChanged` scarica solo le stagioni
+     * nuove o con un numero di episodi diverso, più l'ultima (per date di uscita appena annunciate).
+     * Gli episodi già presenti ricevono nome, durata e data aggiornati, lo stato di visione resta.
+     */
+    suspend fun syncEpisodes(showId: Long, d: TvDetails, defaultRuntime: Int, onlyChanged: Boolean = false) {
+        val local = if (onlyChanged) episodes.seasonCounts(showId).associate { it.season to it.n } else emptyMap()
+        val lastSeason = d.seasons.maxOfOrNull { it.seasonNumber }
         for (s in d.seasons) {
+            if (onlyChanged && s.seasonNumber != lastSeason && local[s.seasonNumber] == s.episodeCount) continue
             val sd = runCatching { api.season(d.id, s.seasonNumber) }.getOrNull() ?: continue
-            episodes.insertNew(
-                sd.episodes.map {
-                    EpisodeEntity(
-                        showId = showId, season = s.seasonNumber, number = it.episodeNumber,
-                        name = it.name, runtime = it.runtime?.takeIf { r -> r > 0 } ?: defaultRuntime,
-                        airDate = it.airDate, isSpecial = s.seasonNumber == 0,
-                    )
-                }
-            )
+            val list = sd.episodes.map {
+                EpisodeEntity(
+                    showId = showId, season = s.seasonNumber, number = it.episodeNumber,
+                    name = it.name, runtime = it.runtime?.takeIf { r -> r > 0 } ?: defaultRuntime,
+                    airDate = it.airDate, isSpecial = s.seasonNumber == 0,
+                )
+            }
+            db.withTransaction {
+                episodes.insertNew(list)
+                if (onlyChanged) list.forEach { episodes.updateMeta(showId, it.season, it.number, it.name, it.runtime, it.airDate) }
+            }
+        }
+    }
+
+    /** Riempie i generi mancanti (titoli aggiunti prima che li salvassimo). Silenzioso, una volta per avvio. */
+    fun backfillGenres() {
+        scope.launch {
+            for (sh in shows.listAll().filter { it.genres == null }) {
+                val d = runCatching { api.tv(sh.tmdbId) }.getOrNull() ?: continue
+                shows.update(sh.copy(genres = d.genres.joinToString(", ") { it.name }.ifBlank { "" }))
+            }
+            for (m in movies.listAll().filter { it.genres == null }) {
+                val d = runCatching { api.movie(m.tmdbId) }.getOrNull() ?: continue
+                movies.update(m.copy(genres = d.genres.joinToString(", ") { it.name }.ifBlank { "" }))
+            }
         }
     }
 
@@ -249,7 +279,7 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
                 }
                 found += show.title to text
             }
-            syncEpisodes(show.id, d, show.defaultRuntime)
+            syncEpisodes(show.id, d, show.defaultRuntime, onlyChanged = true)
             shows.update(show.copy(knownSeasonCount = seasons, knownNextAirDate = next?.airDate, status = d.status))
         }
         return found

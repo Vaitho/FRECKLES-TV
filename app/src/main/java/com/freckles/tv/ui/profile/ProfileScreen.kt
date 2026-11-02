@@ -208,6 +208,8 @@ private fun FavoritesSection(
     var picking by remember { mutableStateOf(false) }
     val byKey = library.associateBy { it.key }
     val favorites = selected.mapNotNull { byKey[it] }
+    // Chiavi di titoli eliminati: non devono occupare posti.
+    val live = favorites.map { it.key }
 
     Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
     Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -227,7 +229,7 @@ private fun FavoritesSection(
                     Box(
                         Modifier.align(Alignment.TopEnd).padding(4.dp).size(24.dp).clip(CircleShape)
                             .background(Color(0xAA000000))
-                            .clickable { onChange(selected - item.key) },
+                            .clickable { onChange(live - item.key) },
                         contentAlignment = Alignment.Center,
                     ) { Icon(Icons.Filled.Close, "Rimuovi", tint = Color.White, modifier = Modifier.size(14.dp)) }
                 }
@@ -243,7 +245,7 @@ private fun FavoritesSection(
 
     if (picking) {
         var query by remember { mutableStateOf("") }
-        val candidates = library.filter { it.key !in selected && it.title.contains(query, ignoreCase = true) }
+        val candidates = library.filter { it.key !in live && it.title.contains(query, ignoreCase = true) }
         AlertDialog(
             onDismissRequest = { picking = false },
             title = { Text("Aggiungi ai preferiti") },
@@ -256,8 +258,8 @@ private fun FavoritesSection(
                         items(candidates, key = { it.key }) { c ->
                             Row(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
-                                    onChange(selected + c.key)
-                                    if (selected.size + 1 >= 5) picking = false
+                                    onChange(live + c.key)
+                                    if (live.size + 1 >= 5) picking = false
                                 }.padding(6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {

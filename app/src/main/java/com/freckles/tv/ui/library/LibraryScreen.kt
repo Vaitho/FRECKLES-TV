@@ -29,7 +29,7 @@ import com.freckles.tv.data.db.GameStatus
 import com.freckles.tv.data.remote.rawgThumb
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.PosterCard
-import com.freckles.tv.ui.games.formatHours
+import com.freckles.tv.util.formatHours
 
 private val showFilters = listOf("Tutte", "In corso", "Da iniziare", "Completate", "Preferite")
 private val movieFilters = listOf("Tutti", "Da vedere", "Visti", "Preferiti")

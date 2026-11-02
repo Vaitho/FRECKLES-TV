@@ -26,7 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.ui.common.LocalRepo
-import com.freckles.tv.ui.common.formatDuration
+import com.freckles.tv.util.formatDuration
 
 @Composable
 fun StatsScreen() {

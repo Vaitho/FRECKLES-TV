@@ -16,6 +16,7 @@ data class ShowEntity(
     val posterPath: String? = null,
     val backdropPath: String? = null,
     val status: String? = null,
+    val genres: String? = null,
     val isFavorite: Boolean = false,
     /** Campanella: notifica per nuove stagioni/episodi. */
     val notifyEnabled: Boolean = false,
@@ -57,6 +58,7 @@ data class MovieEntity(
     val backdropPath: String? = null,
     val runtime: Int = 100,
     val releaseDate: String? = null,
+    val genres: String? = null,
     val isFavorite: Boolean = false,
     val watched: Boolean = false,
     val watchedAt: Long? = null,
@@ -107,3 +109,7 @@ data class GameEntity(
     val finishedAt: Long? = null,
     val addedAt: Long = System.currentTimeMillis(),
 )
+
+data class YearStat(val year: String, val minutes: Long)
+data class ShowMinutes(val showId: Long, val minutes: Long)
+data class SeasonCount(val season: Int, val n: Int)

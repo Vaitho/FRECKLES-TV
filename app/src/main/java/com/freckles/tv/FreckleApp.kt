@@ -16,5 +16,6 @@ class FreckleApp : Application() {
     override fun onCreate() {
         super.onCreate()
         com.freckles.tv.notify.NewSeasonWorker.schedule(this)
+        repository.backfillGenres()
     }
 }

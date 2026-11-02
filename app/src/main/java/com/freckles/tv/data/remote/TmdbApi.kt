@@ -43,6 +43,9 @@ data class ExternalIds(
 )
 
 @Serializable
+data class TmdbGenre(val id: Int = 0, val name: String = "")
+
+@Serializable
 data class TvDetails(
     val id: Int,
     val name: String,
@@ -56,6 +59,7 @@ data class TvDetails(
     @SerialName("next_episode_to_air") val nextEpisodeToAir: TvEpisode? = null,
     val seasons: List<SeasonSummary> = emptyList(),
     @SerialName("external_ids") val externalIds: ExternalIds? = null,
+    val genres: List<TmdbGenre> = emptyList(),
 )
 
 @Serializable
@@ -89,6 +93,7 @@ data class MovieDetails(
     val runtime: Int? = null,
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("imdb_id") val imdbId: String? = null,
+    val genres: List<TmdbGenre> = emptyList(),
 )
 
 @Serializable

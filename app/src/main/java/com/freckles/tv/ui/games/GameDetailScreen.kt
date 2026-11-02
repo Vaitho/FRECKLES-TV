@@ -43,19 +43,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.db.GameStatus
 import com.freckles.tv.ui.common.LocalRepo
+import com.freckles.tv.util.formatHours
 import com.freckles.tv.ui.detail.DetailActions
 import com.freckles.tv.ui.detail.DetailHeader
 
-/** "12 h 30 min" */
-fun formatHours(minutes: Int): String {
-    val h = minutes / 60
-    val m = minutes % 60
-    return when {
-        h == 0 -> "$m min"
-        m == 0 -> "$h h"
-        else -> "$h h $m min"
-    }
-}
 
 @Composable
 fun GameDetailScreen(id: Long, onBack: () -> Unit) {

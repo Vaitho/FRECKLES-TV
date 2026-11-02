@@ -71,7 +71,9 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
 
     val s = show ?: run { Box(Modifier.fillMaxSize()); return }
     val bySeason = episodes.groupBy { it.season }.toSortedMap()
-    val counted = episodes.filter { !it.isSpecial }
+    val today = remember { java.time.LocalDate.now().toString() }
+    // Contano solo gli episodi già usciti (o già visti): quelli annunciati non abbassano l'avanzamento.
+    val counted = episodes.filter { !it.isSpecial && (it.watched || (it.airDate != null && it.airDate <= today)) }
     val watched = counted.count { it.watched }
 
     LazyColumn(Modifier.fillMaxSize()) {

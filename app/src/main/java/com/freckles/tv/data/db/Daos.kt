@@ -36,9 +36,10 @@ interface ShowDao {
     /** Episodi non special visti / totali per ogni serie. */
     @Query(
         """SELECT showId, SUM(watched) AS watched, COUNT(*) AS total
-           FROM episodes WHERE isSpecial = 0 GROUP BY showId"""
+           FROM episodes WHERE isSpecial = 0 AND (watched = 1 OR (airDate IS NOT NULL AND airDate <= :today))
+           GROUP BY showId"""
     )
-    fun observeProgress(): Flow<List<ShowProgress>>
+    fun observeProgress(today: String): Flow<List<ShowProgress>>
 }
 
 @Dao
@@ -53,10 +54,10 @@ interface EpisodeDao {
     /** Prossimo episodio da vedere per ogni serie già iniziata. */
     @Query(
         """SELECT * FROM episodes e
-           WHERE e.isSpecial = 0 AND e.watched = 0 AND (e.airDate IS NULL OR e.airDate <= :today)
+           WHERE e.isSpecial = 0 AND e.watched = 0 AND e.airDate IS NOT NULL AND e.airDate <= :today
            AND EXISTS (SELECT 1 FROM episodes w WHERE w.showId = e.showId AND w.watched = 1 AND w.isSpecial = 0)
            AND NOT EXISTS (SELECT 1 FROM episodes p WHERE p.showId = e.showId AND p.isSpecial = 0
-               AND p.watched = 0 AND (p.airDate IS NULL OR p.airDate <= :today)
+               AND p.watched = 0 AND p.airDate IS NOT NULL AND p.airDate <= :today
                AND (p.season < e.season OR (p.season = e.season AND p.number < e.number)))"""
     )
     fun observeNext(today: String): Flow<List<EpisodeEntity>>
@@ -67,6 +68,25 @@ interface EpisodeDao {
            GROUP BY month ORDER BY month DESC LIMIT 12"""
     )
     fun observeMonthly(): Flow<List<MonthStat>>
+
+    @Query("SELECT season, COUNT(*) AS n FROM episodes WHERE showId = :showId GROUP BY season")
+    suspend fun seasonCounts(showId: Long): List<SeasonCount>
+
+    /** Aggiorna i metadati (es. data di uscita annunciata) senza toccare lo stato di visione. */
+    @Query("UPDATE episodes SET name = :name, runtime = :runtime, airDate = :airDate WHERE showId = :showId AND season = :season AND number = :number")
+    suspend fun updateMeta(showId: Long, season: Int, number: Int, name: String?, runtime: Int, airDate: String?)
+
+    @Query(
+        """SELECT showId, SUM(runtime * watchCount) AS minutes FROM episodes
+           WHERE isSpecial = 0 AND watchCount > 0 GROUP BY showId ORDER BY minutes DESC"""
+    )
+    fun observeMinutesByShow(): Flow<List<ShowMinutes>>
+
+    @Query(
+        """SELECT strftime('%Y', watchedAt / 1000, 'unixepoch') AS year, SUM(runtime * MAX(watchCount, 1)) AS minutes
+           FROM episodes WHERE watched = 1 AND isSpecial = 0 AND watchedAt IS NOT NULL GROUP BY year ORDER BY year"""
+    )
+    fun observeYearly(): Flow<List<YearStat>>
 
     @Query("SELECT * FROM episodes WHERE showId = :showId")
     suspend fun listForShow(showId: Long): List<EpisodeEntity>
@@ -125,6 +145,12 @@ interface MovieDao {
 
     @Query("DELETE FROM movies WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query(
+        """SELECT strftime('%Y', watchedAt / 1000, 'unixepoch') AS year, SUM(runtime * MAX(watchCount, 1)) AS minutes
+           FROM movies WHERE watched = 1 AND watchedAt IS NOT NULL GROUP BY year ORDER BY year"""
+    )
+    fun observeYearly(): Flow<List<YearStat>>
 
     @Query("SELECT COALESCE(SUM(runtime * watchCount), 0) FROM movies WHERE watchCount > 0")
     fun observeWatchedMinutes(): Flow<Long>
