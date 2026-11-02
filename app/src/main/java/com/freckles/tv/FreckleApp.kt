@@ -11,4 +11,9 @@ class FreckleApp : Application() {
     val api by lazy { TmdbApi.create() }
     val repository by lazy { com.freckles.tv.data.Repository(db, api) }
     val prefs by lazy { UserPrefs(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        com.freckles.tv.notify.NewSeasonWorker.schedule(this)
+    }
 }

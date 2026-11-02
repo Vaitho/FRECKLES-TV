@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,7 +32,7 @@ import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.PosterCard
 
 @Composable
-fun HomeScreen(username: String, onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
+fun HomeScreen(username: String, onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpenSettings: () -> Unit) {
     val repo = LocalRepo.current
     val shows by repo.allShows.collectAsStateWithLifecycle(emptyList())
     val movies by repo.allMovies.collectAsStateWithLifecycle(emptyList())
@@ -43,10 +44,16 @@ fun HomeScreen(username: String, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
 
     LazyColumn(contentPadding = PaddingValues(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         item {
-            Text(
-                "Ciao, $username", style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp),
-            )
+            Row(
+                Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Ciao, $username", style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Settings, "Impostazioni") }
+            }
         }
         item {
             Section("Continua a guardare") {

@@ -32,6 +32,7 @@ import com.freckles.tv.ui.detail.ShowDetailScreen
 import com.freckles.tv.ui.home.HomeScreen
 import com.freckles.tv.ui.library.LibraryScreen
 import com.freckles.tv.ui.search.SearchScreen
+import com.freckles.tv.ui.settings.SettingsScreen
 import com.freckles.tv.ui.stats.StatsScreen
 
 private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
@@ -75,10 +76,11 @@ fun AppRoot(username: String) {
         val openShow = { id: Long -> nav.navigate("show/$id") }
         val openMovie = { id: Long -> nav.navigate("movie/$id") }
         NavHost(nav, startDestination = Tab.Home.route, modifier = Modifier.padding(padding)) {
-            composable(Tab.Home.route) { HomeScreen(username, openShow, openMovie) }
+            composable(Tab.Home.route) { HomeScreen(username, openShow, openMovie) { nav.navigate("settings") } }
             composable(Tab.Search.route) { SearchScreen(openShow, openMovie) }
             composable(Tab.Library.route) { LibraryScreen(openShow, openMovie) }
             composable(Tab.Stats.route) { StatsScreen() }
+            composable("settings") { SettingsScreen { nav.popBackStack() } }
             composable("show/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
                 ShowDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
             }

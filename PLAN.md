@@ -91,10 +91,11 @@ Legenda: `[ ]` da fare · `[x]` fatto. Lavorare in ordine, una fase per volta, u
 Installo l'APK, importo il JSON, vedo le mie serie con poster e progresso, cerco un titolo, attivo la campanella, e le statistiche mostrano episodi visti e tempo totale corretti.
 
 ## Stato
-- Fase 0: scritta, **mai compilata** (sul PC non ci sono JDK né Android SDK). Wrapper Gradle da generare con Android Studio.
-- Fase 1: entità/DAO/DB scritti (`data/db`). Repository ancora da fare.
-- Fase 2: `TmdbApi` scritto. Onboarding nome utente scritto.
-- Prossimo: Repository + Fase 3 (schermate).
+- Compila (`./gradlew assembleDebug` con il JBR di Android Studio come JAVA_HOME). Mai provata su emulatore/telefono.
+- Fasi 0-3: fatte (DB, TMDB, Home/Cerca/Libreria/Statistiche/Dettaglio serie e film, campanella, preferiti).
+- Fase 5: `NewSeasonWorker` ogni 12h (nuova stagione o premiere annunciata). Da provare.
+- Fase 6: import TV Time in Impostazioni (icona ingranaggio in Home). Parser verificato sul file reale: 89 serie, 2889 episodi visti. Speciali ed extra ignorati.
+- Da fare: Fase 4 (rifinitura grafica, animazioni, icona vera), export JSON, import film, test su dispositivo.
 
 ## Note
 - Il JSON personale è gitignored (`tvtime-series-*.json`).

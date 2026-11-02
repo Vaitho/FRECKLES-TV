@@ -65,6 +65,12 @@ interface EpisodeDao {
     )
     fun observeMonthly(): Flow<List<MonthStat>>
 
+    @Query("SELECT * FROM episodes WHERE showId = :showId")
+    suspend fun listForShow(showId: Long): List<EpisodeEntity>
+
+    @Update
+    suspend fun updateAll(episodes: List<EpisodeEntity>)
+
     @Query("SELECT * FROM episodes WHERE showId = :showId AND season = :season AND number = :number")
     suspend fun find(showId: Long, season: Int, number: Int): EpisodeEntity?
 

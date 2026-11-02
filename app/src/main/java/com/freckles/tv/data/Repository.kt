@@ -1,6 +1,7 @@
 package com.freckles.tv.data
 
 import com.freckles.tv.data.db.AppDatabase
+import com.freckles.tv.data.importer.TvTimeImporter
 import com.freckles.tv.data.db.EpisodeEntity
 import com.freckles.tv.data.db.MovieEntity
 import com.freckles.tv.data.db.ShowEntity
@@ -17,6 +18,8 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 class Repository(private val db: AppDatabase, private val api: TmdbApi) {
+    val importer = TvTimeImporter(db, api, this)
+
     /** Scope di app: le operazioni di rete non si interrompono se l'utente cambia schermata. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
@@ -101,6 +104,40 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi) {
                 }
             )
         }
+    }
+
+    /** Avvia l'import in background; `read` viene eseguito su un thread IO. */
+    fun startImport(read: () -> String) {
+        scope.launch {
+            runCatching { read() }
+                .onSuccess { importer.import(it) }
+                .onFailure { _messages.tryEmit("Impossibile leggere il file: ${it.message}") }
+        }
+    }
+
+    /**
+     * Controlla le serie con la campanella: ritorna (titolo, testo) per ogni nuova stagione
+     * o premiere annunciata. Aggiorna anche gli episodi e lo stato noto.
+     */
+    suspend fun checkForUpdates(): List<Pair<String, String>> {
+        val found = mutableListOf<Pair<String, String>>()
+        for (show in shows.notifyShows()) {
+            val d = runCatching { api.tv(show.tmdbId) }.getOrNull() ?: continue
+            val seasons = d.seasons.count { it.seasonNumber > 0 }
+            val next = d.nextEpisodeToAir
+            val newSeason = seasons > show.knownSeasonCount
+            val premiere = next != null && next.episodeNumber == 1 && next.airDate != show.knownNextAirDate
+            if (newSeason || premiere) {
+                val text = when {
+                    next?.airDate != null && premiere -> "Nuova stagione dal ${next.airDate}"
+                    else -> "È disponibile una nuova stagione"
+                }
+                found += show.title to text
+            }
+            syncEpisodes(show.id, d, show.defaultRuntime)
+            shows.update(show.copy(knownSeasonCount = seasons, knownNextAirDate = next?.airDate, status = d.status))
+        }
+        return found
     }
 
     // ---- azioni ----

@@ -74,4 +74,6 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.work.runtime)
     implementation(libs.datastore)
+
+    testImplementation("junit:junit:4.13.2")
 }
