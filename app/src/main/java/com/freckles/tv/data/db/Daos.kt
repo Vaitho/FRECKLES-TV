@@ -132,3 +132,33 @@ interface MovieDao {
     @Query("SELECT COUNT(*) FROM movies WHERE watched = 1")
     fun observeWatchedCount(): Flow<Int>
 }
+
+@Dao
+interface GameDao {
+    @Query("SELECT * FROM games ORDER BY title COLLATE NOCASE")
+    fun observeAll(): Flow<List<GameEntity>>
+
+    @Query("SELECT * FROM games")
+    suspend fun listAll(): List<GameEntity>
+
+    @Query("SELECT * FROM games WHERE id = :id")
+    fun observe(id: Long): Flow<GameEntity?>
+
+    @Query("SELECT * FROM games WHERE rawgId = :rawgId")
+    suspend fun byRawgId(rawgId: Int): GameEntity?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(game: GameEntity): Long
+
+    @Update
+    suspend fun update(game: GameEntity)
+
+    @Query("DELETE FROM games WHERE id = :id")
+    suspend fun delete(id: Long)
+
+    @Query("SELECT COALESCE(SUM(minutesPlayed), 0) FROM games")
+    fun observeMinutes(): Flow<Long>
+
+    @Query("SELECT COUNT(*) FROM games WHERE status = 'finished'")
+    fun observeFinishedCount(): Flow<Int>
+}

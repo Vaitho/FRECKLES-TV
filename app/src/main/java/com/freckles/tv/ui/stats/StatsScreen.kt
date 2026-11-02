@@ -33,6 +33,7 @@ fun StatsScreen() {
     val repo = LocalRepo.current
     val episodes by repo.watchedEpisodes.collectAsStateWithLifecycle(0)
     val movies by repo.watchedMovies.collectAsStateWithLifecycle(0)
+    val gamesDone by repo.finishedGames.collectAsStateWithLifecycle(0)
     val minutes by repo.totalMinutes.collectAsStateWithLifecycle(0L)
     val monthly by repo.monthly.collectAsStateWithLifecycle(emptyList())
 
@@ -47,7 +48,7 @@ fun StatsScreen() {
             ).padding(24.dp)
         ) {
             Column {
-                Text("Tempo totale davanti allo schermo", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
+                Text("Tempo totale tra schermo e controller", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
                 Text(
                     formatDuration(minutes), color = MaterialTheme.colorScheme.onPrimary,
                     style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
@@ -60,6 +61,7 @@ fun StatsScreen() {
             StatCard("Episodi visti", episodes.toString(), Modifier.weight(1f))
             StatCard("Film visti", movies.toString(), Modifier.weight(1f))
         }
+        StatCard("Giochi finiti", gamesDone.toString(), Modifier.fillMaxWidth())
         Text("Ultimi mesi (ore di serie TV)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         if (monthly.isEmpty()) {
             Text("Nessun dato con data di visione.", color = MaterialTheme.colorScheme.onSurfaceVariant)

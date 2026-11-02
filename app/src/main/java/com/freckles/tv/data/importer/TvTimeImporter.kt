@@ -19,7 +19,7 @@ import java.time.Instant
 // ---- formato del file (export TV Time) ----
 
 @Serializable
-data class ImportId(val tvdb: Int? = null, val imdb: String? = null, val tmdb: Int? = null)
+data class ImportId(val tvdb: Int? = null, val imdb: String? = null, val tmdb: Int? = null, val rawg: Int? = null)
 
 @Serializable
 data class ImportEpisode(
@@ -57,9 +57,21 @@ data class ImportMovie(
     @kotlinx.serialization.SerialName("watched_count") val watchedCount: Int = 0,
 )
 
+@Serializable
+data class ImportGame(
+    val id: ImportId = ImportId(),
+    val title: String,
+    val status: String = "backlog",
+    @kotlinx.serialization.SerialName("minutes_played") val minutesPlayed: Int = 0,
+    val rating: Int = 0,
+    @kotlinx.serialization.SerialName("is_favorite") val isFavorite: Boolean = false,
+    @kotlinx.serialization.SerialName("created_at") val createdAt: String? = null,
+    @kotlinx.serialization.SerialName("finished_at") val finishedAt: String? = null,
+)
+
 /** Formato di export dell'app; l'import accetta anche l'array di sole serie di TV Time. */
 @Serializable
-data class Backup(val version: Int = 1, val shows: List<ImportShow> = emptyList(), val movies: List<ImportMovie> = emptyList())
+data class Backup(val version: Int = 1, val shows: List<ImportShow> = emptyList(), val movies: List<ImportMovie> = emptyList(), val games: List<ImportGame> = emptyList())
 
 data class ImportState(
     val running: Boolean = false,
@@ -68,6 +80,7 @@ data class ImportState(
     val done: Int = 0,
     val imported: Int = 0,
     val moviesImported: Int = 0,
+    val gamesImported: Int = 0,
     val episodesMarked: Int = 0,
     val episodesUnmatched: Int = 0,
     val failed: List<String> = emptyList(),
@@ -95,7 +108,7 @@ class TvTimeImporter(
             return
         }
         val shows = backup.shows
-        _state.value = ImportState(running = true, total = shows.size + backup.movies.size)
+        _state.value = ImportState(running = true, total = shows.size + backup.movies.size + backup.games.size)
         val gate = Semaphore(4)
         coroutineScope {
             shows.map { show ->
@@ -113,6 +126,16 @@ class TvTimeImporter(
                     gate.withPermit {
                         runCatching { importMovie(movie) }.onFailure { e ->
                             _state.update { it.copy(failed = it.failed + "${movie.title}: ${e.message ?: "errore"}") }
+                        }
+                        _state.update { it.copy(done = it.done + 1) }
+                    }
+                }
+            }.awaitAll()
+            backup.games.map { game ->
+                async {
+                    gate.withPermit {
+                        runCatching { importGame(game) }.onFailure { e ->
+                            _state.update { it.copy(failed = it.failed + "${game.title}: ${e.message ?: "errore"}") }
                         }
                         _state.update { it.copy(done = it.done + 1) }
                     }
@@ -147,6 +170,20 @@ class TvTimeImporter(
         _state.update { it.copy(moviesImported = it.moviesImported + 1) }
     }
 
+    private suspend fun importGame(g: ImportGame) {
+        val rawgId = g.id.rawg ?: repo.searchGames(g.title).firstOrNull()?.id ?: error("non trovato su RAWG")
+        repo.addGameNow(rawgId)
+        val row = db.gameDao().byRawgId(rawgId) ?: return
+        db.gameDao().update(
+            row.copy(
+                status = g.status, minutesPlayed = maxOf(row.minutesPlayed, g.minutesPlayed),
+                rating = if (g.rating > 0) g.rating else row.rating, isFavorite = row.isFavorite || g.isFavorite,
+                finishedAt = parseTime(g.finishedAt) ?: row.finishedAt, addedAt = parseTime(g.createdAt) ?: row.addedAt,
+            )
+        )
+        _state.update { it.copy(gamesImported = it.gamesImported + 1) }
+    }
+
     suspend fun export(): String {
         val shows = db.showDao().listAll().map { sh ->
             val eps = db.episodeDao().listForShow(sh.id).filter { it.watched && !it.isSpecial }
@@ -170,7 +207,14 @@ class TvTimeImporter(
                 watchedCount = m.watchCount,
             )
         }
-        return Json { encodeDefaults = true }.encodeToString(Backup.serializer(), Backup(1, shows, movies))
+        val games = db.gameDao().listAll().map { g ->
+            ImportGame(
+                id = ImportId(rawg = g.rawgId), title = g.title, status = g.status, minutesPlayed = g.minutesPlayed,
+                rating = g.rating, isFavorite = g.isFavorite, createdAt = Instant.ofEpochMilli(g.addedAt).toString(),
+                finishedAt = g.finishedAt?.let { Instant.ofEpochMilli(it).toString() },
+            )
+        }
+        return Json { encodeDefaults = true }.encodeToString(Backup.serializer(), Backup(1, shows, movies, games))
     }
 
     private suspend fun resolveTmdbId(show: ImportShow): Int? {

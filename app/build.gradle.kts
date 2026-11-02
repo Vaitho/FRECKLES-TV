@@ -24,6 +24,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"${localProps.getProperty("TMDB_API_KEY", "")}\"")
+        buildConfigField("String", "RAWG_API_KEY", "\"${localProps.getProperty("RAWG_API_KEY", "")}\"")
     }
 
     buildTypes {

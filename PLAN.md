@@ -97,7 +97,8 @@ Installo l'APK, importo il JSON, vedo le mie serie con poster e progresso, cerco
 - Fase 6: import TV Time in Impostazioni (icona ingranaggio in Home). Parser verificato sul file reale: 89 serie, 2889 episodi visti. Speciali ed extra ignorati.
 - Export/import backup JSON (serie + film) fatto, campanella animata, haptic sui check. Import verificato dall utente sul file reale (tempo plausibile).
 - Fase 4 fatta: menu profilo (avatar in alto a sinistra), pagina profilo (avatar emoji/foto, 5 preferiti), temi (chiaro/scuro/sistema + 7 colori + dinamico), pillole azione animate, check circolari, shimmer, transizioni, icona adattiva.
-- Da fare: provare tutto su emulatore, eventuali ritocchi grafici.
+- Videogiochi (RAWG): ricerca, libreria (scheda Giochi), stato, ore a mano, voto, backup. DB versione 2 con migrazione automatica.
+- Da fare: preferiti del profilo anche per i giochi, ritocchi grafici.
 
 ## Note
 - Il JSON personale è gitignored (`tvtime-series-*.json`).

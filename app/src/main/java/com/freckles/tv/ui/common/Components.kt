@@ -71,6 +71,7 @@ fun PosterCard(
     title: String,
     posterPath: String?,
     modifier: Modifier = Modifier,
+    imageUrl: String? = null,
     subtitle: String? = null,
     progress: Float? = null,
     corner: @Composable () -> Unit = {},
@@ -84,7 +85,7 @@ fun PosterCard(
             .clickable(onClick = onClick)
     ) {
         SubcomposeAsyncImage(
-            model = posterUrl(posterPath),
+            model = imageUrl ?: posterUrl(posterPath),
             contentDescription = title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),

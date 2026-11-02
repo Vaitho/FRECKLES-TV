@@ -5,6 +5,10 @@ import com.freckles.tv.data.importer.TvTimeImporter
 import com.freckles.tv.data.db.EpisodeEntity
 import com.freckles.tv.data.db.MovieEntity
 import com.freckles.tv.data.db.ShowEntity
+import com.freckles.tv.data.db.GameEntity
+import com.freckles.tv.data.db.GameStatus
+import com.freckles.tv.data.remote.RawgApi
+import com.freckles.tv.data.remote.RawgGame
 import com.freckles.tv.data.remote.SearchItem
 import com.freckles.tv.data.remote.TmdbApi
 import com.freckles.tv.data.remote.TvDetails
@@ -31,7 +35,7 @@ data class PreviewInfo(
     val imdbId: String?,
 )
 
-class Repository(private val db: AppDatabase, private val api: TmdbApi) {
+class Repository(private val db: AppDatabase, private val api: TmdbApi, private val rawg: RawgApi) {
     val importer = TvTimeImporter(db, api, this)
 
     /** Scope di app: le operazioni di rete non si interrompono se l'utente cambia schermata. */
@@ -42,9 +46,13 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi) {
     private val shows = db.showDao()
     private val episodes = db.episodeDao()
     private val movies = db.movieDao()
+    private val games = db.gameDao()
 
     val allShows = shows.observeAll()
     val allMovies = movies.observeAll()
+    val allGames = games.observeAll()
+    fun observeGame(id: Long) = games.observe(id)
+    val finishedGames = games.observeFinishedCount()
     val progress = shows.observeProgress()
     fun observeShow(id: Long) = shows.observe(id)
     fun observeMovie(id: Long) = movies.observe(id)
@@ -53,7 +61,9 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi) {
     val monthly = episodes.observeMonthly()
     val watchedEpisodes = episodes.observeWatchedCount()
     val watchedMovies = movies.observeWatchedCount()
-    val totalMinutes = combine(episodes.observeWatchedMinutes(), movies.observeWatchedMinutes()) { a, b -> a + b }
+    val totalMinutes = combine(
+        episodes.observeWatchedMinutes(), movies.observeWatchedMinutes(), games.observeMinutes(),
+    ) { a, b, c -> a + b + c }
 
     // ---- rete ----
 
@@ -84,6 +94,52 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi) {
                 d.imdbId,
             )
         }
+
+    // ---- videogiochi (RAWG) ----
+
+    suspend fun searchGames(query: String): List<RawgGame> = rawg.search(query).results
+
+    fun gamePendingKey(rawgId: Int) = "game:$rawgId"
+
+    fun addGame(rawgId: Int, status: String) {
+        val key = gamePendingKey(rawgId)
+        if (key in _pending.value) return
+        _pending.update { it + key }
+        launchReporting("Impossibile aggiungere il gioco") {
+            if (games.byRawgId(rawgId) == null) {
+                addGameNow(rawgId, status)
+                _messages.tryEmit("Gioco aggiunto")
+            }
+        }.invokeOnCompletion { _pending.update { it - key } }
+    }
+
+    suspend fun addGameNow(rawgId: Int, status: String = GameStatus.BACKLOG): Long {
+        games.byRawgId(rawgId)?.let { return it.id }
+        val d = rawg.game(rawgId)
+        return games.insert(
+            GameEntity(
+                rawgId = d.id, title = d.name, overview = d.description?.takeIf { it.isNotBlank() },
+                imageUrl = d.backgroundImage, released = d.released,
+                platforms = d.platforms.orEmpty().joinToString(", ") { it.platform.name }.ifBlank { null },
+                genres = d.genres.orEmpty().joinToString(", ") { it.name }.ifBlank { null },
+                status = status,
+                finishedAt = if (status == GameStatus.FINISHED) System.currentTimeMillis() else null,
+            )
+        )
+    }
+
+    fun setGameStatus(g: GameEntity, status: String) = launchReporting("Errore") {
+        games.update(
+            g.copy(
+                status = status,
+                finishedAt = if (status == GameStatus.FINISHED) g.finishedAt ?: System.currentTimeMillis() else null,
+            )
+        )
+    }
+    fun setGameMinutes(g: GameEntity, minutes: Int) = launchReporting("Errore") { games.update(g.copy(minutesPlayed = minutes.coerceAtLeast(0))) }
+    fun setGameRating(g: GameEntity, rating: Int) = launchReporting("Errore") { games.update(g.copy(rating = rating.coerceIn(0, 5))) }
+    fun setGameFavorite(g: GameEntity) = launchReporting("Errore") { games.update(g.copy(isFavorite = !g.isFavorite)) }
+    fun deleteGame(id: Long) = launchReporting("Errore") { games.delete(id) }
 
     // ---- aggiunta ----
 

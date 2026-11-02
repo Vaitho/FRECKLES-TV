@@ -81,6 +81,11 @@ fun SettingsScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Controlla nuove stagioni adesso") }
 
+        Text(
+            "Dati di film e serie: TMDB. Dati dei videogiochi: RAWG. Link IMDb solo come collegamento.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
         if (state.running) {
             LinearProgressIndicator(
                 progress = { if (state.total == 0) 0f else state.done.toFloat() / state.total },
@@ -91,7 +96,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (state.finished && state.error == null) {
             Text("Import completato", fontWeight = FontWeight.SemiBold)
-            Text("Serie importate: ${state.imported}, film: ${state.moviesImported} (su ${state.total} titoli)")
+            Text("Serie importate: ${state.imported}, film: ${state.moviesImported}, giochi: ${state.gamesImported} (su ${state.total} titoli)")
             Text("Episodi segnati come visti: ${state.episodesMarked}")
             if (state.episodesUnmatched > 0) {
                 Text(

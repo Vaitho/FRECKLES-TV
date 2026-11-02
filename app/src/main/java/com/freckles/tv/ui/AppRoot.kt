@@ -46,6 +46,7 @@ import com.freckles.tv.data.prefs.UserPrefs
 import com.freckles.tv.ui.common.Avatar
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.detail.MovieDetailScreen
+import com.freckles.tv.ui.games.GameDetailScreen
 import com.freckles.tv.ui.detail.PreviewScreen
 import com.freckles.tv.ui.detail.ShowDetailScreen
 import com.freckles.tv.ui.home.HomeScreen
@@ -128,6 +129,7 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
         ) { padding ->
             val openShow = { id: Long -> nav.navigate("show/$id") }
             val openMovie = { id: Long -> nav.navigate("movie/$id") }
+            val openGame = { id: Long -> nav.navigate("game/$id") }
             val openPreview = { type: String, id: Int -> nav.navigate("preview/$type/$id") }
             NavHost(
                 nav,
@@ -139,8 +141,8 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                 popExitTransition = { fadeOut(tween(120)) },
             ) {
                 composable(Tab.Home.route) { HomeScreen(profile, openShow, openMovie, openPreview) }
-                composable(Tab.Search.route) { SearchScreen(openShow, openMovie, openPreview) }
-                composable(Tab.Library.route) { LibraryScreen(openShow, openMovie) }
+                composable(Tab.Search.route) { SearchScreen(openShow, openMovie, openPreview, openGame) }
+                composable(Tab.Library.route) { LibraryScreen(openShow, openMovie, openGame) }
                 composable(Tab.Stats.route) { StatsScreen() }
                 composable("settings") { SettingsScreen { nav.popBackStack() } }
                 composable("profile") { ProfileScreen(profile, prefs, { nav.popBackStack() }, openShow, openMovie) }
@@ -158,6 +160,9 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                             popUpTo("preview/{type}/{id}") { inclusive = true }
                         }
                     }
+                }
+                composable("game/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
+                    GameDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
                 }
                 composable("movie/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
                     MovieDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }

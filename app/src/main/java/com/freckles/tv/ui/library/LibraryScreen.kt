@@ -22,33 +22,42 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.freckles.tv.data.db.GameStatus
+import com.freckles.tv.data.remote.rawgThumb
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.PosterCard
+import com.freckles.tv.ui.games.formatHours
 
 private val showFilters = listOf("Tutte", "In corso", "Da iniziare", "Completate", "Preferite")
 private val movieFilters = listOf("Tutti", "Da vedere", "Visti", "Preferiti")
+private val gameFilters = listOf("Tutti", "Da giocare", "In corso", "Finiti", "Abbandonati", "Preferiti")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
+fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpenGame: (Long) -> Unit) {
     val repo = LocalRepo.current
     val shows by repo.allShows.collectAsStateWithLifecycle(emptyList())
     val movies by repo.allMovies.collectAsStateWithLifecycle(emptyList())
+    val games by repo.allGames.collectAsStateWithLifecycle(emptyList())
     val progress by repo.progress.collectAsStateWithLifecycle(emptyList())
     val progressById = progress.associateBy { it.showId }
 
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var filter by rememberSaveable { mutableIntStateOf(0) }
-    val filters = if (tab == 0) showFilters else movieFilters
+    val filters = when (tab) {
+        0 -> showFilters
+        1 -> movieFilters
+        else -> gameFilters
+    }
 
     Column(Modifier.fillMaxSize()) {
         PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
             Tab(selected = tab == 0, onClick = { tab = 0; filter = 0 }, text = { Text("Serie (${shows.size})") })
             Tab(selected = tab == 1, onClick = { tab = 1; filter = 0 }, text = { Text("Film (${movies.size})") })
+            Tab(selected = tab == 2, onClick = { tab = 2; filter = 0 }, text = { Text("Giochi (${games.size})") })
         }
         LazyRow(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
@@ -79,8 +88,18 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
                 else -> true
             }
         }
+        val shownGames = games.filter { g ->
+            when (filter) {
+                1 -> g.status == GameStatus.BACKLOG
+                2 -> g.status == GameStatus.PLAYING
+                3 -> g.status == GameStatus.FINISHED
+                4 -> g.status == GameStatus.DROPPED
+                5 -> g.isFavorite
+                else -> true
+            }
+        }
 
-        if ((tab == 0 && shownShows.isEmpty()) || (tab == 1 && shownMovies.isEmpty())) {
+        if ((tab == 0 && shownShows.isEmpty()) || (tab == 1 && shownMovies.isEmpty()) || (tab == 2 && shownGames.isEmpty())) {
             Text(
                 "Niente da mostrare. Usa Cerca per aggiungere titoli.",
                 Modifier.fillMaxWidth().padding(32.dp),
@@ -93,8 +112,8 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (tab == 0) {
-                items(shownShows, key = { it.id }) { s ->
+            when (tab) {
+                0 -> items(shownShows, key = { it.id }) { s ->
                     val p = progressById[s.id]
                     PosterCard(
                         title = s.title,
@@ -104,13 +123,21 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
                         onClick = { onOpenShow(s.id) },
                     )
                 }
-            } else {
-                items(shownMovies, key = { it.id }) { m ->
+                1 -> items(shownMovies, key = { it.id }) { m ->
                     PosterCard(
                         title = m.title,
                         posterPath = m.posterPath,
                         subtitle = if (m.watched) "Visto" else null,
                         onClick = { onOpenMovie(m.id) },
+                    )
+                }
+                else -> items(shownGames, key = { it.id }) { g ->
+                    PosterCard(
+                        title = g.title,
+                        posterPath = null,
+                        imageUrl = rawgThumb(g.imageUrl),
+                        subtitle = GameStatus.label(g.status) + if (g.minutesPlayed > 0) " · ${formatHours(g.minutesPlayed)}" else "",
+                        onClick = { onOpenGame(g.id) },
                     )
                 }
             }

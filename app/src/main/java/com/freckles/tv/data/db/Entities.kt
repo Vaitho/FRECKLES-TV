@@ -71,3 +71,39 @@ data class ShowProgress(
 )
 
 data class MonthStat(val month: String, val minutes: Long)
+
+object GameStatus {
+    const val BACKLOG = "backlog"
+    const val PLAYING = "playing"
+    const val FINISHED = "finished"
+    const val DROPPED = "dropped"
+
+    val all = listOf(BACKLOG, PLAYING, FINISHED, DROPPED)
+    fun label(s: String) = when (s) {
+        BACKLOG -> "Da giocare"
+        PLAYING -> "In corso"
+        FINISHED -> "Finito"
+        DROPPED -> "Abbandonato"
+        else -> s
+    }
+}
+
+@Entity(tableName = "games", indices = [Index(value = ["rawgId"], unique = true)])
+data class GameEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val rawgId: Int,
+    val title: String,
+    val overview: String? = null,
+    val imageUrl: String? = null,
+    val released: String? = null,
+    val platforms: String? = null,
+    val genres: String? = null,
+    val status: String = GameStatus.BACKLOG,
+    /** Tempo di gioco inserito a mano, in minuti. */
+    val minutesPlayed: Int = 0,
+    /** Voto personale 0-5 (0 = nessuno). */
+    val rating: Int = 0,
+    val isFavorite: Boolean = false,
+    val finishedAt: Long? = null,
+    val addedAt: Long = System.currentTimeMillis(),
+)
