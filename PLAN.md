@@ -95,7 +95,8 @@ Installo l'APK, importo il JSON, vedo le mie serie con poster e progresso, cerco
 - Fasi 0-3: fatte (DB, TMDB, Home/Cerca/Libreria/Statistiche/Dettaglio serie e film, campanella, preferiti).
 - Fase 5: `NewSeasonWorker` ogni 12h (nuova stagione o premiere annunciata). Da provare.
 - Fase 6: import TV Time in Impostazioni (icona ingranaggio in Home). Parser verificato sul file reale: 89 serie, 2889 episodi visti. Speciali ed extra ignorati.
-- Da fare: Fase 4 (rifinitura grafica, animazioni, icona vera), export JSON, import film, test su dispositivo.
+- Export/import backup JSON (serie + film) fatto, campanella animata, haptic sui check. Import verificato dall utente sul file reale (tempo plausibile).
+- Da fare: rifinitura grafica (icona vera, shimmer, transizioni), test notifiche su dispositivo.
 
 ## Note
 - Il JSON personale è gitignored (`tvtime-series-*.json`).

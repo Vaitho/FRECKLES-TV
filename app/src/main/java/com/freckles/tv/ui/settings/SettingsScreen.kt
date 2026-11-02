@@ -39,6 +39,10 @@ fun SettingsScreen(onBack: () -> Unit) {
         if (uri != null) repo.startImport { readText(ctx, uri) }
     }
 
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+        if (uri != null) repo.startExport { json -> ctx.contentResolver.openOutputStream(uri)!!.bufferedWriter().use { it.write(json) } }
+    }
+
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -46,7 +50,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Indietro") }
         Text("Impostazioni", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
 
-        Text("Importa da JSON", style = MaterialTheme.typography.titleMedium)
+        Text("Importa ed esporta", style = MaterialTheme.typography.titleMedium)
         Text(
             "Scegli il file di export (formato TV Time). Le serie vengono cercate su TMDB, " +
                 "episodi e date di visione vengono ripristinati. Puoi rilanciare l'import senza creare duplicati.",
@@ -61,6 +65,10 @@ fun SettingsScreen(onBack: () -> Unit) {
             Text("  Scegli file…")
         }
 
+        OutlinedButton(onClick = { exporter.launch("freckles-tv-backup.json") }, modifier = Modifier.fillMaxWidth()) {
+            Text("Esporta backup JSON")
+        }
+
         if (state.running) {
             LinearProgressIndicator(
                 progress = { if (state.total == 0) 0f else state.done.toFloat() / state.total },
@@ -71,7 +79,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (state.finished && state.error == null) {
             Text("Import completato", fontWeight = FontWeight.SemiBold)
-            Text("Serie importate: ${state.imported} su ${state.total}")
+            Text("Serie importate: ${state.imported}, film: ${state.moviesImported} (su ${state.total} titoli)")
             Text("Episodi segnati come visti: ${state.episodesMarked}")
             if (state.episodesUnmatched > 0) {
                 Text(

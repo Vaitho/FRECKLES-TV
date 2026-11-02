@@ -61,16 +61,22 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi) {
     }
 
     fun addMovie(tmdbId: Int) = launchReporting("Impossibile aggiungere il film") {
-        if (movies.byTmdbId(tmdbId) != null) return@launchReporting
+        if (movies.byTmdbId(tmdbId) == null) {
+            addMovieNow(tmdbId)
+            _messages.tryEmit("Film aggiunto")
+        }
+    }
+
+    suspend fun addMovieNow(tmdbId: Int): Long {
+        movies.byTmdbId(tmdbId)?.let { return it.id }
         val d = api.movie(tmdbId)
-        movies.insert(
+        return movies.insert(
             MovieEntity(
                 tmdbId = d.id, imdbId = d.imdbId, title = d.title, overview = d.overview,
                 posterPath = d.posterPath, backdropPath = d.backdropPath,
                 runtime = d.runtime?.takeIf { it > 0 } ?: 100, releaseDate = d.releaseDate,
             )
         )
-        _messages.tryEmit("Film aggiunto")
     }
 
     suspend fun addShowNow(tmdbId: Int): Long {
@@ -138,6 +144,12 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi) {
             shows.update(show.copy(knownSeasonCount = seasons, knownNextAirDate = next?.airDate, status = d.status))
         }
         return found
+    }
+
+    /** Genera il backup e lo consegna a `write` (che lo scrive sul file scelto). */
+    fun startExport(write: (String) -> Unit) = launchReporting("Esportazione non riuscita") {
+        write(importer.export())
+        _messages.tryEmit("Backup esportato")
     }
 
     // ---- azioni ----

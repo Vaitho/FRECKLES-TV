@@ -19,7 +19,7 @@ import java.time.Instant
 // ---- formato del file (export TV Time) ----
 
 @Serializable
-data class ImportId(val tvdb: Int? = null, val imdb: String? = null)
+data class ImportId(val tvdb: Int? = null, val imdb: String? = null, val tmdb: Int? = null)
 
 @Serializable
 data class ImportEpisode(
@@ -46,12 +46,28 @@ data class ImportShow(
     val seasons: List<ImportSeason> = emptyList(),
 )
 
+@Serializable
+data class ImportMovie(
+    val id: ImportId = ImportId(),
+    val title: String,
+    @kotlinx.serialization.SerialName("created_at") val createdAt: String? = null,
+    @kotlinx.serialization.SerialName("is_favorite") val isFavorite: Boolean = false,
+    @kotlinx.serialization.SerialName("is_watched") val isWatched: Boolean = false,
+    @kotlinx.serialization.SerialName("watched_at") val watchedAt: String? = null,
+    @kotlinx.serialization.SerialName("watched_count") val watchedCount: Int = 0,
+)
+
+/** Formato di export dell'app; l'import accetta anche l'array di sole serie di TV Time. */
+@Serializable
+data class Backup(val version: Int = 1, val shows: List<ImportShow> = emptyList(), val movies: List<ImportMovie> = emptyList())
+
 data class ImportState(
     val running: Boolean = false,
     val finished: Boolean = false,
     val total: Int = 0,
     val done: Int = 0,
     val imported: Int = 0,
+    val moviesImported: Int = 0,
     val episodesMarked: Int = 0,
     val episodesUnmatched: Int = 0,
     val failed: List<String> = emptyList(),
@@ -71,11 +87,15 @@ class TvTimeImporter(
     /** Importa il file; rieseguirlo non duplica nulla e non toglie mai lo stato "visto". */
     suspend fun import(text: String) {
         if (_state.value.running) return
-        val shows = runCatching { json.decodeFromString<List<ImportShow>>(text) }.getOrElse {
+        val backup = runCatching {
+            if (text.trimStart().startsWith("[")) Backup(shows = json.decodeFromString<List<ImportShow>>(text))
+            else json.decodeFromString<Backup>(text)
+        }.getOrElse {
             _state.value = ImportState(finished = true, error = "File non valido: ${it.message?.take(120)}")
             return
         }
-        _state.value = ImportState(running = true, total = shows.size)
+        val shows = backup.shows
+        _state.value = ImportState(running = true, total = shows.size + backup.movies.size)
         val gate = Semaphore(4)
         coroutineScope {
             shows.map { show ->
@@ -83,6 +103,16 @@ class TvTimeImporter(
                     gate.withPermit {
                         runCatching { importShow(show) }.onFailure { e ->
                             _state.update { it.copy(failed = it.failed + "${show.title}: ${e.message ?: "errore"}") }
+                        }
+                        _state.update { it.copy(done = it.done + 1) }
+                    }
+                }
+            }.awaitAll()
+            backup.movies.map { movie ->
+                async {
+                    gate.withPermit {
+                        runCatching { importMovie(movie) }.onFailure { e ->
+                            _state.update { it.copy(failed = it.failed + "${movie.title}: ${e.message ?: "errore"}") }
                         }
                         _state.update { it.copy(done = it.done + 1) }
                     }
@@ -96,7 +126,55 @@ class TvTimeImporter(
         if (!_state.value.running) _state.value = ImportState()
     }
 
+    private fun parseTime(s: String?) = s?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+
+    private suspend fun importMovie(m: ImportMovie) {
+        val tmdbId = m.id.tmdb
+            ?: m.id.imdb?.let { api.find(it, "imdb_id").movieResults.firstOrNull()?.id }
+            ?: api.search(m.title).results.firstOrNull { it.mediaType == "movie" }?.id
+            ?: error("non trovato su TMDB")
+        repo.addMovieNow(tmdbId)
+        val row = db.movieDao().byTmdbId(tmdbId) ?: return
+        db.movieDao().update(
+            row.copy(
+                isFavorite = row.isFavorite || m.isFavorite,
+                watched = row.watched || m.isWatched,
+                watchedAt = row.watchedAt ?: if (m.isWatched) parseTime(m.watchedAt) ?: System.currentTimeMillis() else null,
+                watchCount = maxOf(row.watchCount, if (m.isWatched) maxOf(1, m.watchedCount) else 0),
+                addedAt = parseTime(m.createdAt) ?: row.addedAt,
+            )
+        )
+        _state.update { it.copy(moviesImported = it.moviesImported + 1) }
+    }
+
+    suspend fun export(): String {
+        val shows = db.showDao().listAll().map { sh ->
+            val eps = db.episodeDao().listForShow(sh.id).filter { it.watched && !it.isSpecial }
+            ImportShow(
+                id = ImportId(tvdb = sh.tvdbId, imdb = sh.imdbId, tmdb = sh.tmdbId),
+                title = sh.title,
+                createdAt = Instant.ofEpochMilli(sh.addedAt).toString(),
+                isFavorite = sh.isFavorite,
+                seasons = eps.groupBy { it.season }.toSortedMap().map { (n, list) ->
+                    ImportSeason(n, false, list.sortedBy { it.number }.map {
+                        ImportEpisode(it.number, false, true, it.watchedAt?.let { t -> Instant.ofEpochMilli(t).toString() }, it.watchCount)
+                    })
+                },
+            )
+        }
+        val movies = db.movieDao().listAll().map { m ->
+            ImportMovie(
+                id = ImportId(imdb = m.imdbId, tmdb = m.tmdbId), title = m.title,
+                createdAt = Instant.ofEpochMilli(m.addedAt).toString(), isFavorite = m.isFavorite,
+                isWatched = m.watched, watchedAt = m.watchedAt?.let { Instant.ofEpochMilli(it).toString() },
+                watchedCount = m.watchCount,
+            )
+        }
+        return Json { encodeDefaults = true }.encodeToString(Backup.serializer(), Backup(1, shows, movies))
+    }
+
     private suspend fun resolveTmdbId(show: ImportShow): Int? {
+        show.id.tmdb?.let { return it }
         show.id.tvdb?.let { tvdb ->
             api.find(tvdb.toString(), "tvdb_id").tvResults.firstOrNull()?.let { return it.id }
         }

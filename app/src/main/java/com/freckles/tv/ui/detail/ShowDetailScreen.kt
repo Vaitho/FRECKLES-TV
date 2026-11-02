@@ -41,6 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -55,6 +57,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
     val show by remember(id) { repo.observeShow(id) }.collectAsStateWithLifecycle(null)
     val episodes by remember(id) { repo.observeEpisodes(id) }.collectAsStateWithLifecycle(emptyList())
     val uri = LocalUriHandler.current
+    val haptic = LocalHapticFeedback.current
     var confirmDelete by remember { mutableStateOf(false) }
     var expanded by rememberSaveable { mutableStateOf(setOf<Int>()) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
@@ -124,10 +127,10 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
             if (open) {
                 items(list, key = { it.id }) { ep ->
                     Row(
-                        Modifier.fillMaxWidth().clickable { repo.toggleEpisode(ep) }.padding(horizontal = 12.dp),
+                        Modifier.fillMaxWidth().clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleEpisode(ep) }.padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Checkbox(checked = ep.watched, onCheckedChange = { repo.toggleEpisode(ep) })
+                        Checkbox(checked = ep.watched, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleEpisode(ep) })
                         Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
                             Text("${ep.number}. ${ep.name ?: "Episodio ${ep.number}"}")
                             Text(

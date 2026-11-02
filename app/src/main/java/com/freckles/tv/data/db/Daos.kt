@@ -12,6 +12,9 @@ interface ShowDao {
     @Query("SELECT * FROM shows ORDER BY title COLLATE NOCASE")
     fun observeAll(): Flow<List<ShowEntity>>
 
+    @Query("SELECT * FROM shows")
+    suspend fun listAll(): List<ShowEntity>
+
     @Query("SELECT * FROM shows WHERE id = :id")
     fun observe(id: Long): Flow<ShowEntity?>
 
@@ -97,6 +100,9 @@ interface EpisodeDao {
 interface MovieDao {
     @Query("SELECT * FROM movies ORDER BY title COLLATE NOCASE")
     fun observeAll(): Flow<List<MovieEntity>>
+
+    @Query("SELECT * FROM movies")
+    suspend fun listAll(): List<MovieEntity>
 
     @Query("SELECT * FROM movies WHERE id = :id")
     fun observe(id: Long): Flow<MovieEntity?>
