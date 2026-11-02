@@ -106,6 +106,8 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
 
     fun gamePendingKey(rawgId: Int) = "game:$rawgId"
 
+    suspend fun gamePreview(rawgId: Int) = rawg.game(rawgId)
+
     fun addGame(rawgId: Int, status: String) {
         val key = gamePendingKey(rawgId)
         if (key in _pending.value) return

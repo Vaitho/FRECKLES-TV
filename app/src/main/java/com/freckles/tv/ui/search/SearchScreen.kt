@@ -55,6 +55,7 @@ fun SearchScreen(
     onOpenMovie: (Long) -> Unit,
     onOpenPreview: (String, Int) -> Unit,
     onOpenGame: (Long) -> Unit,
+    onOpenGamePreview: (Int) -> Unit,
 ) {
     val repo = LocalRepo.current
     val vm: SearchViewModel = viewModel(factory = viewModelFactory { initializer { SearchViewModel(repo) } })
@@ -138,7 +139,7 @@ fun SearchScreen(
                             image = rawgThumb(g.backgroundImage),
                             title = g.name,
                             subtitle = listOfNotNull(g.year, g.platformNames.take(3).joinToString(", ").ifBlank { null }).joinToString(" · "),
-                            onClick = { if (libId != null) onOpenGame(libId) },
+                            onClick = { if (libId != null) onOpenGame(libId) else onOpenGamePreview(g.id) },
                         ) {
                             var menu by remember { mutableStateOf(false) }
                             if (repo.gamePendingKey(g.id) in pending) {
