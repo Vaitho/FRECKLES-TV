@@ -27,6 +27,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -130,13 +136,16 @@ fun CornerButton(
 ) {
     Box(
         Modifier
-            .size(36.dp)
+            .size(48.dp)
             .clip(CircleShape)
-            .background(Color(0x99000000))
-            .border(1.dp, Color(0x55FFFFFF), CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick, role = Role.Button, onClickLabel = description),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, description, tint = Color.White, modifier = Modifier.size(20.dp)) }
+    ) {
+        Box(
+            Modifier.size(36.dp).clip(CircleShape).background(Color(0x99000000)).border(1.dp, Color(0x55FFFFFF), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, description, tint = Color.White, modifier = Modifier.size(20.dp)) }
+    }
 }
 
 /** Spunta circolare animata (sostituisce la checkbox). */
@@ -153,9 +162,10 @@ fun CheckCircle(checked: Boolean, onToggle: () -> Unit, modifier: Modifier = Mod
     )
     Box(
         modifier
-            .size(44.dp)
+            .size(48.dp)
             .clip(CircleShape)
-            .clickable(onClick = onToggle),
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() })
+            .semantics { contentDescription = "Visto" },
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -190,3 +200,27 @@ fun AddMenu(expanded: Boolean, onDismiss: () -> Unit, isMovie: Boolean, onAdd: (
         )
     }
 }
+
+/** Cinque stelle tappabili; toccare di nuovo la stella del voto attuale lo azzera. */
+@Composable
+fun StarRating(rating: Int, onRate: (Int) -> Unit, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Row(modifier) {
+        (1..5).forEach { star ->
+            val on = star <= rating
+            val tint by animateColorAsState(
+                if (on) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline, tween(160), label = "star",
+            )
+            androidx.compose.material3.IconButton(onClick = { onRate(if (rating == star) 0 else star) }) {
+                Icon(
+                    if (on) Icons.Filled.Star else Icons.Filled.StarBorder,
+                    contentDescription = if (rating == star) "$star stelle, tocca per togliere il voto" else "Vota $star stelle",
+                    tint = tint,
+                    modifier = Modifier.size(30.dp),
+                )
+            }
+        }
+    }
+}
+
+/** "★ 4" per le liste; null se non votato. */
+fun ratingLabel(rating: Int): String? = if (rating > 0) "★ $rating" else null

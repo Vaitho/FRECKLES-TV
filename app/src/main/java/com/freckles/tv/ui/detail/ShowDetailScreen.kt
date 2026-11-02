@@ -57,6 +57,7 @@ import coil.compose.AsyncImage
 import com.freckles.tv.data.remote.backdropUrl
 import com.freckles.tv.ui.common.CheckCircle
 import com.freckles.tv.ui.common.LocalRepo
+import com.freckles.tv.ui.common.StarRating
 
 @Composable
 fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
@@ -67,7 +68,9 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
     val haptic = LocalHapticFeedback.current
     var confirmDelete by remember { mutableStateOf(false) }
     var expanded by rememberSaveable { mutableStateOf(setOf<Int>()) }
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) repo.say("Senza il permesso per le notifiche la campanella non potrà avvisarti")
+    }
 
     val s = show ?: run { Box(Modifier.fillMaxSize()); return }
     val bySeason = episodes.groupBy { it.season }.toSortedMap()
@@ -99,6 +102,8 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
                     progress = { if (counted.isEmpty()) 0f else watched.toFloat() / counted.size },
                     modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
                 )
+                Text("Il tuo voto", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp))
+                StarRating(s.rating, { repo.setShowRating(s, it) })
                 if (!s.overview.isNullOrBlank()) {
                     Text(s.overview, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
                 }
@@ -185,6 +190,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
 
 @Composable
 internal fun DetailHeader(imageUrl: String?, title: String, onBack: () -> Unit) {
+    LightStatusBarIcons()
     Box(Modifier.fillMaxWidth().height(280.dp)) {
         AsyncImage(
             model = imageUrl, contentDescription = null, contentScale = ContentScale.Crop,
@@ -204,5 +210,18 @@ internal fun DetailHeader(imageUrl: String?, title: String, onBack: () -> Unit) 
             title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold,
             modifier = Modifier.align(Alignment.BottomStart).padding(horizontal = 20.dp, vertical = 12.dp),
         )
+    }
+}
+
+/** Finché è visibile, rende chiare le icone della barra di stato (ora, batteria) e poi ripristina. */
+@Composable
+private fun LightStatusBarIcons() {
+    val view = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(view) {
+        val window = (view.context as? android.app.Activity)?.window
+        val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
+        val before = controller?.isAppearanceLightStatusBars
+        controller?.isAppearanceLightStatusBars = false
+        onDispose { if (before != null) controller.isAppearanceLightStatusBars = before }
     }
 }

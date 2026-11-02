@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -40,7 +41,10 @@ fun Avatar(profile: Profile, size: Dp, modifier: Modifier = Modifier, onClick: (
     Box(base, contentAlignment = Alignment.Center) {
         val photo = profile.photoPath?.let(::File)?.takeIf { it.exists() }
         if (photo != null) {
-            AsyncImage(photo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            AsyncImage(
+                photo, null, contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().padding(size * 0.06f).clip(CircleShape),
+            )
         } else {
             Text(profile.emoji, fontSize = emojiSize(size.value))
         }

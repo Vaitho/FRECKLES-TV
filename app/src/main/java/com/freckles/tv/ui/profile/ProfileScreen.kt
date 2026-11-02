@@ -142,10 +142,16 @@ fun ProfileScreen(
         )
 
         Text("Colore avatar", style = MaterialTheme.typography.titleSmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (profile.photoPath != null) {
+            Text(
+                "Con la foto, il colore fa da cornice.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             AvatarColors.forEachIndexed { i, c ->
                 Box(
-                    Modifier.size(34.dp).clip(CircleShape).background(c)
+                    Modifier.size(40.dp).clip(CircleShape).background(c)
                         .border(if (profile.colorIdx == i) 3.dp else 0.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
                         .clickable { scope.launch { prefs.setAvatar(profile.emoji, i) } }
                 )

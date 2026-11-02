@@ -134,7 +134,7 @@ private fun SectionLabel(text: String) {
 private fun Swatch(brush: Brush, selected: Boolean, description: String, onClick: () -> Unit) {
     Box(
         Modifier
-            .size(44.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .background(brush)
             .border(if (selected) 3.dp else 0.dp, MaterialTheme.colorScheme.onSurface, CircleShape)

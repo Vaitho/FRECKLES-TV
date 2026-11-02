@@ -24,17 +24,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.remote.backdropUrl
 import com.freckles.tv.ui.common.LocalRepo
+import com.freckles.tv.ui.common.StarRating
 
 @Composable
 fun MovieDetailScreen(id: Long, onBack: () -> Unit) {
     val repo = LocalRepo.current
     val movie by remember(id) { repo.observeMovie(id) }.collectAsStateWithLifecycle(null)
     val uri = LocalUriHandler.current
+    val haptic = LocalHapticFeedback.current
     var confirmDelete by remember { mutableStateOf(false) }
 
     val m = movie ?: run { Box(Modifier.fillMaxSize()); return }
@@ -45,7 +49,7 @@ fun MovieDetailScreen(id: Long, onBack: () -> Unit) {
             notify = null,
             favorite = m.isFavorite,
             onNotify = {},
-            onFavorite = { repo.setMovieFavorite(m) },
+            onFavorite = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.setMovieFavorite(m) },
             onImdb = m.imdbId?.let { { uri.openUri("https://www.imdb.com/title/$it") } },
             onDelete = { confirmDelete = true },
         )
@@ -54,10 +58,12 @@ fun MovieDetailScreen(id: Long, onBack: () -> Unit) {
                 listOfNotNull(m.releaseDate?.take(4), "${m.runtime} min").joinToString(" · "),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(onClick = { repo.toggleMovieWatched(m) }, Modifier.fillMaxWidth()) {
+            Button(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleMovieWatched(m) }, Modifier.fillMaxWidth()) {
                 if (m.watched) Icon(Icons.Filled.Check, null)
                 Text(if (m.watched) "Visto – tocca per annullare" else "Segna come visto")
             }
+            Text("Il tuo voto", style = MaterialTheme.typography.titleSmall)
+            StarRating(m.rating, { repo.setMovieRating(m, it) })
             if (!m.overview.isNullOrBlank()) Text(m.overview)
         }
         androidx.compose.foundation.layout.Spacer(Modifier.navigationBarsPadding().height(32.dp))

@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.db.GameStatus
 import com.freckles.tv.ui.common.LocalRepo
+import com.freckles.tv.ui.common.StarRating
 import com.freckles.tv.util.formatHours
 import com.freckles.tv.ui.detail.DetailActions
 import com.freckles.tv.ui.detail.DetailHeader
@@ -109,17 +110,7 @@ fun GameDetailScreen(id: Long, onBack: () -> Unit) {
             }
 
             Text("Il tuo voto", style = MaterialTheme.typography.titleSmall)
-            Row {
-                (1..5).forEach { star ->
-                    IconButton(onClick = { repo.setGameRating(g, if (g.rating == star) 0 else star) }) {
-                        Icon(
-                            if (star <= g.rating) Icons.Filled.Star else Icons.Filled.StarBorder,
-                            "$star stelle",
-                            tint = if (star <= g.rating) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline,
-                        )
-                    }
-                }
-            }
+            StarRating(g.rating, { repo.setGameRating(g, it) })
 
             if (!g.platforms.isNullOrBlank()) {
                 Text("Piattaforme", style = MaterialTheme.typography.titleSmall)

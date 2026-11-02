@@ -28,11 +28,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.db.GameStatus
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.PosterCard
+import com.freckles.tv.ui.common.ratingLabel
 import com.freckles.tv.util.formatHours
 
-private val showFilters = listOf("Tutte", "In corso", "Da iniziare", "Completate", "Preferite")
-private val movieFilters = listOf("Tutti", "Da vedere", "Visti", "Preferiti")
-private val gameFilters = listOf("Tutti", "Da giocare", "In corso", "Finiti", "Abbandonati", "Preferiti")
+private val showFilters = listOf("Tutte", "In corso", "Da iniziare", "Completate", "Preferite", "Votate")
+private val movieFilters = listOf("Tutti", "Da vedere", "Visti", "Preferiti", "Votati")
+private val gameFilters = listOf("Tutti", "Da giocare", "In corso", "Finiti", "Abbandonati", "Preferiti", "Votati")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +77,7 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                 2 -> w == 0
                 3 -> t > 0 && w >= t
                 4 -> s.isFavorite
+                5 -> s.rating > 0
                 else -> true
             }
         }
@@ -84,6 +86,7 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                 1 -> !m.watched
                 2 -> m.watched
                 3 -> m.isFavorite
+                4 -> m.rating > 0
                 else -> true
             }
         }
@@ -94,6 +97,7 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                 3 -> g.status == GameStatus.FINISHED
                 4 -> g.status == GameStatus.DROPPED
                 5 -> g.isFavorite
+                6 -> g.rating > 0
                 else -> true
             }
         }
@@ -117,7 +121,7 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                     PosterCard(
                         title = s.title,
                         posterPath = s.posterPath,
-                        subtitle = p?.let { "${it.watched}/${it.total}" },
+                        subtitle = listOfNotNull(p?.let { "${it.watched}/${it.total}" }, ratingLabel(s.rating)).joinToString(" · ").ifBlank { null },
                         progress = p?.takeIf { it.total > 0 }?.let { it.watched.toFloat() / it.total },
                         onClick = { onOpenShow(s.id) },
                     )
@@ -126,7 +130,7 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                     PosterCard(
                         title = m.title,
                         posterPath = m.posterPath,
-                        subtitle = if (m.watched) "Visto" else null,
+                        subtitle = listOfNotNull(if (m.watched) "Visto" else null, ratingLabel(m.rating)).joinToString(" · ").ifBlank { null },
                         onClick = { onOpenMovie(m.id) },
                     )
                 }
@@ -135,7 +139,7 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                         title = g.title,
                         posterPath = null,
                         imageUrl = g.imageUrl,
-                        subtitle = GameStatus.label(g.status) + if (g.minutesPlayed > 0) " · ${formatHours(g.minutesPlayed)}" else "",
+                        subtitle = listOfNotNull(GameStatus.label(g.status), g.minutesPlayed.takeIf { it > 0 }?.let { formatHours(it) }, ratingLabel(g.rating)).joinToString(" · "),
                         onClick = { onOpenGame(g.id) },
                     )
                 }

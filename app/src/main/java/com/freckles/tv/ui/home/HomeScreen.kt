@@ -128,7 +128,7 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
             }
         }
 
-        item {
+        if (trending.isNotEmpty()) item {
             Section("Di tendenza") {
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(trending, key = { "${it.mediaType}${it.id}" }) { item ->

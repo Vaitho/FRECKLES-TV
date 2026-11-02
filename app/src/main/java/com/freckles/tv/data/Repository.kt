@@ -320,6 +320,14 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
         )
     }
 
+    fun setShowRating(s: ShowEntity, rating: Int) = launchReporting("Errore") { shows.update(s.copy(rating = rating.coerceIn(0, 5))) }
+    fun setMovieRating(m: MovieEntity, rating: Int) = launchReporting("Errore") { movies.update(m.copy(rating = rating.coerceIn(0, 5))) }
+
+    /** Messaggio breve mostrato nella snackbar. */
+    fun say(message: String) {
+        _messages.tryEmit(message)
+    }
+
     fun setShowFavorite(s: ShowEntity) = launchReporting("Errore") { shows.update(s.copy(isFavorite = !s.isFavorite)) }
     fun setShowNotify(s: ShowEntity) = launchReporting("Errore") { shows.update(s.copy(notifyEnabled = !s.notifyEnabled)) }
     fun setMovieFavorite(m: MovieEntity) = launchReporting("Errore") { movies.update(m.copy(isFavorite = !m.isFavorite)) }

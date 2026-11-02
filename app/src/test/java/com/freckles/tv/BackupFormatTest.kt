@@ -47,6 +47,7 @@ class BackupFormatTest {
         assertTrue(s2[0].isWatched && !s2[0].special)
         assertTrue(s2[1].special) // va ignorato dall'import: collide con S2E1
         assertTrue(s.seasons[2].episodes.isEmpty())
+        assertEquals(0, s.rating) // TV Time non ha voti: resta "nessun voto"
     }
 
     @Test
@@ -55,11 +56,11 @@ class BackupFormatTest {
             version = 1,
             shows = listOf(
                 ImportShow(
-                    id = ImportId(tvdb = 1, tmdb = 2), title = "Serie", isFavorite = true,
+                    id = ImportId(tvdb = 1, tmdb = 2), title = "Serie", isFavorite = true, rating = 4,
                     seasons = listOf(ImportSeason(1, false, listOf(ImportEpisode(3, false, true, "2024-01-01T00:00:00Z", 2)))),
                 )
             ),
-            movies = listOf(ImportMovie(id = ImportId(tmdb = 9, imdb = "tt1"), title = "Film", isWatched = true, watchedCount = 1)),
+            movies = listOf(ImportMovie(id = ImportId(tmdb = 9, imdb = "tt1"), title = "Film", isWatched = true, watchedCount = 1, rating = 5)),
             games = listOf(ImportGame(id = ImportId(ext = "igdb:1942"), title = "Gioco", status = "finished", minutesPlayed = 600, rating = 5)),
         )
         val text = Json { encodeDefaults = true }.encodeToString(Backup.serializer(), original)

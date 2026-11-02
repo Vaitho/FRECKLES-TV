@@ -52,6 +52,8 @@ data class ImportShow(
     @kotlinx.serialization.SerialName("created_at") val createdAt: String? = null,
     @kotlinx.serialization.SerialName("is_favorite") val isFavorite: Boolean = false,
     val seasons: List<ImportSeason> = emptyList(),
+    /** Voto 0-5 (assente nell'export di TV Time). */
+    val rating: Int = 0,
 )
 
 @Serializable
@@ -63,6 +65,7 @@ data class ImportMovie(
     @kotlinx.serialization.SerialName("is_watched") val isWatched: Boolean = false,
     @kotlinx.serialization.SerialName("watched_at") val watchedAt: String? = null,
     @kotlinx.serialization.SerialName("watched_count") val watchedCount: Int = 0,
+    val rating: Int = 0,
 )
 
 @Serializable
@@ -174,6 +177,7 @@ class TvTimeImporter(
                 watchedAt = row.watchedAt ?: if (m.isWatched) parseTime(m.watchedAt) ?: System.currentTimeMillis() else null,
                 watchCount = maxOf(row.watchCount, if (m.isWatched) maxOf(1, m.watchedCount) else 0),
                 addedAt = parseTime(m.createdAt) ?: row.addedAt,
+                rating = if (m.rating > 0) m.rating.coerceIn(1, 5) else row.rating,
             )
         )
         _state.update { it.copy(moviesImported = it.moviesImported + 1) }
@@ -207,6 +211,7 @@ class TvTimeImporter(
                 title = sh.title,
                 createdAt = Instant.ofEpochMilli(sh.addedAt).toString(),
                 isFavorite = sh.isFavorite,
+                rating = sh.rating,
                 seasons = eps.groupBy { it.season }.toSortedMap().map { (n, list) ->
                     ImportSeason(n, false, list.sortedBy { it.number }.map {
                         ImportEpisode(it.number, false, true, it.watchedAt?.let { t -> Instant.ofEpochMilli(t).toString() }, it.watchCount)
@@ -220,6 +225,7 @@ class TvTimeImporter(
                 createdAt = Instant.ofEpochMilli(m.addedAt).toString(), isFavorite = m.isFavorite,
                 isWatched = m.watched, watchedAt = m.watchedAt?.let { Instant.ofEpochMilli(it).toString() },
                 watchedCount = m.watchCount,
+                rating = m.rating,
             )
         }
         val games = db.gameDao().listAll().map { g ->
@@ -269,7 +275,12 @@ class TvTimeImporter(
             val row = db.showDao().byTmdbId(tmdbId)
             if (row != null) {
                 val added = show.createdAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
-                db.showDao().update(row.copy(isFavorite = row.isFavorite || show.isFavorite, addedAt = added ?: row.addedAt))
+                db.showDao().update(
+                    row.copy(
+                        isFavorite = row.isFavorite || show.isFavorite, addedAt = added ?: row.addedAt,
+                        rating = if (show.rating > 0) show.rating.coerceIn(1, 5) else row.rating,
+                    )
+                )
             }
         }
         _state.update { it.copy(imported = it.imported + 1, episodesMarked = it.episodesMarked + marked, episodesUnmatched = it.episodesUnmatched + unmatched) }

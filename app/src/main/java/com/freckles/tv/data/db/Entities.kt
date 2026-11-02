@@ -1,5 +1,6 @@
 package com.freckles.tv.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -17,6 +18,8 @@ data class ShowEntity(
     val backdropPath: String? = null,
     val status: String? = null,
     val genres: String? = null,
+    /** Voto personale 0-5 (0 = nessuno). */
+    @ColumnInfo(defaultValue = "0") val rating: Int = 0,
     val isFavorite: Boolean = false,
     /** Campanella: notifica per nuove stagioni/episodi. */
     val notifyEnabled: Boolean = false,
@@ -59,6 +62,8 @@ data class MovieEntity(
     val runtime: Int = 100,
     val releaseDate: String? = null,
     val genres: String? = null,
+    /** Voto personale 0-5 (0 = nessuno). */
+    @ColumnInfo(defaultValue = "0") val rating: Int = 0,
     val isFavorite: Boolean = false,
     val watched: Boolean = false,
     val watchedAt: Long? = null,
