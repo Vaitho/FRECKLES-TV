@@ -1,8 +1,8 @@
 package com.freckles.tv.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,9 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,12 +24,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.freckles.tv.data.prefs.Profile
 import com.freckles.tv.data.remote.SearchItem
+import com.freckles.tv.ui.common.CornerButton
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.PosterCard
+import java.time.LocalTime
 
 @Composable
-fun HomeScreen(username: String, onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpenSettings: () -> Unit) {
+fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
     val repo = LocalRepo.current
     val shows by repo.allShows.collectAsStateWithLifecycle(emptyList())
     val movies by repo.allMovies.collectAsStateWithLifecycle(emptyList())
@@ -41,18 +41,19 @@ fun HomeScreen(username: String, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
         value = runCatching { repo.trending() }.getOrDefault(emptyList())
     }
     val showById = shows.associateBy { it.id }
+    val hour = LocalTime.now().hour
+    val greeting = when {
+        hour < 6 -> "Buonanotte"
+        hour < 13 -> "Buongiorno"
+        hour < 18 -> "Buon pomeriggio"
+        else -> "Buonasera"
+    }
 
-    LazyColumn(contentPadding = PaddingValues(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
         item {
-            Row(
-                Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            ) {
-                Text(
-                    "Ciao, $username", style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Settings, "Impostazioni") }
+            Column(Modifier.padding(horizontal = 20.dp)) {
+                Text(greeting, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(profile.name ?: "", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
             }
         }
         item {
@@ -71,12 +72,8 @@ fun HomeScreen(username: String, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
                                 title = show.title,
                                 posterPath = show.posterPath,
                                 subtitle = "S${ep.season}E${ep.number}" + (ep.name?.let { " · $it" } ?: ""),
-                                modifier = Modifier.width(140.dp),
-                                corner = {
-                                    IconButton(onClick = { repo.toggleEpisode(ep) }) {
-                                        Icon(Icons.Filled.Check, "Segna come visto", tint = MaterialTheme.colorScheme.primary)
-                                    }
-                                },
+                                modifier = Modifier.width(150.dp),
+                                corner = { CornerButton(Icons.Filled.Check, "Segna come visto") { repo.toggleEpisode(ep) } },
                                 onClick = { onOpenShow(show.id) },
                             )
                         }
@@ -84,6 +81,27 @@ fun HomeScreen(username: String, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
                 }
             }
         }
+
+        val favs = profile.favorites.mapNotNull { key ->
+            val id = key.drop(2).toLongOrNull() ?: return@mapNotNull null
+            when {
+                key.startsWith("s:") -> showById[id]?.let { Triple(key, it.title, it.posterPath) to { onOpenShow(id) } }
+                key.startsWith("m:") -> movies.firstOrNull { it.id == id }?.let { Triple(key, it.title, it.posterPath) to { onOpenMovie(id) } }
+                else -> null
+            }
+        }
+        if (favs.isNotEmpty()) {
+            item {
+                Section("I tuoi preferiti") {
+                    LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(favs, key = { it.first.first }) { (info, open) ->
+                            PosterCard(title = info.second, posterPath = info.third, modifier = Modifier.width(120.dp), onClick = open)
+                        }
+                    }
+                }
+            }
+        }
+
         item {
             Section("Di tendenza") {
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -95,11 +113,9 @@ fun HomeScreen(username: String, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
                             title = item.displayTitle,
                             posterPath = item.posterPath,
                             subtitle = item.year,
-                            modifier = Modifier.width(140.dp),
+                            modifier = Modifier.width(130.dp),
                             corner = {
-                                if (!inLibrary) IconButton(onClick = { repo.add(item) }) {
-                                    Icon(Icons.Filled.Add, "Aggiungi", tint = MaterialTheme.colorScheme.primary)
-                                }
+                                if (!inLibrary) CornerButton(Icons.Filled.Add, "Aggiungi") { repo.add(item) }
                             },
                             onClick = {
                                 if (showId != null) onOpenShow(showId)
@@ -116,10 +132,11 @@ fun HomeScreen(username: String, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
-    androidx.compose.foundation.layout.Column {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-        }
+    Column {
+        Text(
+            title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        )
         Spacer(Modifier.height(12.dp))
         content()
     }

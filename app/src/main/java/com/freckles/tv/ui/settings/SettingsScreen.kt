@@ -7,7 +7,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -44,7 +46,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     }
 
     Column(
-        Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
+        Modifier.statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Indietro") }
@@ -68,6 +70,16 @@ fun SettingsScreen(onBack: () -> Unit) {
         OutlinedButton(onClick = { exporter.launch("freckles-tv-backup.json") }, modifier = Modifier.fillMaxWidth()) {
             Text("Esporta backup JSON")
         }
+
+        Text("Notifiche", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Le serie con la campanella vengono controllate ogni 12 ore circa.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedButton(
+            onClick = { androidx.work.WorkManager.getInstance(ctx).enqueue(androidx.work.OneTimeWorkRequestBuilder<com.freckles.tv.notify.NewSeasonWorker>().build()) },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Controlla nuove stagioni adesso") }
 
         if (state.running) {
             LinearProgressIndicator(

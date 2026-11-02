@@ -56,7 +56,7 @@ class NewSeasonWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(
                 ctx, 0, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
             val n = NotificationCompat.Builder(ctx, CHANNEL)
-                .setSmallIcon(R.drawable.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setContentIntent(open)
