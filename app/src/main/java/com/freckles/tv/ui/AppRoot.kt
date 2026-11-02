@@ -46,6 +46,7 @@ import com.freckles.tv.data.prefs.UserPrefs
 import com.freckles.tv.ui.common.Avatar
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.detail.MovieDetailScreen
+import com.freckles.tv.ui.detail.PreviewScreen
 import com.freckles.tv.ui.detail.ShowDetailScreen
 import com.freckles.tv.ui.home.HomeScreen
 import com.freckles.tv.ui.library.LibraryScreen
@@ -127,6 +128,7 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
         ) { padding ->
             val openShow = { id: Long -> nav.navigate("show/$id") }
             val openMovie = { id: Long -> nav.navigate("movie/$id") }
+            val openPreview = { type: String, id: Int -> nav.navigate("preview/$type/$id") }
             NavHost(
                 nav,
                 startDestination = Tab.Home.route,
@@ -136,14 +138,26 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                 popEnterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f) },
                 popExitTransition = { fadeOut(tween(120)) },
             ) {
-                composable(Tab.Home.route) { HomeScreen(profile, openShow, openMovie) }
-                composable(Tab.Search.route) { SearchScreen(openShow, openMovie) }
+                composable(Tab.Home.route) { HomeScreen(profile, openShow, openMovie, openPreview) }
+                composable(Tab.Search.route) { SearchScreen(openShow, openMovie, openPreview) }
                 composable(Tab.Library.route) { LibraryScreen(openShow, openMovie) }
                 composable(Tab.Stats.route) { StatsScreen() }
                 composable("settings") { SettingsScreen { nav.popBackStack() } }
                 composable("profile") { ProfileScreen(profile, prefs, { nav.popBackStack() }, openShow, openMovie) }
                 composable("show/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
                     ShowDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
+                }
+                composable(
+                    "preview/{type}/{id}",
+                    listOf(navArgument("type") { type = NavType.StringType }, navArgument("id") { type = NavType.IntType }),
+                ) {
+                    val type = it.arguments!!.getString("type")!!
+                    val id = it.arguments!!.getInt("id")
+                    PreviewScreen(type, id, { nav.popBackStack() }) { isShow, libId ->
+                        nav.navigate(if (isShow) "show/$libId" else "movie/$libId") {
+                            popUpTo("preview/{type}/{id}") { inclusive = true }
+                        }
+                    }
                 }
                 composable("movie/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
                     MovieDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }

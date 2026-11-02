@@ -37,7 +37,7 @@ import com.freckles.tv.ui.common.PosterCard
 import java.time.LocalTime
 
 @Composable
-fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
+fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpenPreview: (String, Int) -> Unit) {
     val repo = LocalRepo.current
     val shows by repo.allShows.collectAsStateWithLifecycle(emptyList())
     val movies by repo.allMovies.collectAsStateWithLifecycle(emptyList())
@@ -133,7 +133,7 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
                             onClick = {
                                 if (showId != null) onOpenShow(showId)
                                 else if (movieId != null) onOpenMovie(movieId)
-                                else if (!adding) menu = true
+                                else if (!adding) onOpenPreview(item.mediaType, item.id)
                             },
                         )
                     }

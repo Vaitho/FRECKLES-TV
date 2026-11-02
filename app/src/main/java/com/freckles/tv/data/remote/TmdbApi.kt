@@ -50,6 +50,7 @@ data class TvDetails(
     @SerialName("poster_path") val posterPath: String? = null,
     @SerialName("backdrop_path") val backdropPath: String? = null,
     val status: String? = null,
+    @SerialName("first_air_date") val firstAirDate: String? = null,
     @SerialName("number_of_seasons") val numberOfSeasons: Int = 0,
     @SerialName("episode_run_time") val episodeRunTime: List<Int> = emptyList(),
     @SerialName("next_episode_to_air") val nextEpisodeToAir: TvEpisode? = null,

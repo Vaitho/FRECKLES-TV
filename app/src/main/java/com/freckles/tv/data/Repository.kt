@@ -21,6 +21,16 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
+/** Dati per la pagina di anteprima di un titolo non ancora in libreria. */
+data class PreviewInfo(
+    val title: String,
+    val overview: String?,
+    val posterPath: String?,
+    val backdropPath: String?,
+    val meta: String,
+    val imdbId: String?,
+)
+
 class Repository(private val db: AppDatabase, private val api: TmdbApi) {
     val importer = TvTimeImporter(db, api, this)
 
@@ -50,6 +60,30 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi) {
     suspend fun search(query: String): List<SearchItem> = api.search(query).results.filterTmdb()
     suspend fun trending(): List<SearchItem> = api.trending().results.filterTmdb()
     private fun List<SearchItem>.filterTmdb() = filter { it.mediaType == "tv" || it.mediaType == "movie" }
+
+    suspend fun preview(type: String, id: Int): PreviewInfo =
+        if (type == "tv") {
+            val d = api.tv(id)
+            val seasons = d.seasons.count { it.seasonNumber > 0 }
+            PreviewInfo(
+                d.name, d.overview, d.posterPath, d.backdropPath,
+                listOfNotNull(
+                    "Serie TV", d.firstAirDate?.take(4)?.takeIf { it.isNotBlank() },
+                    if (seasons > 0) "$seasons ${if (seasons == 1) "stagione" else "stagioni"}" else null,
+                ).joinToString(" · "),
+                d.externalIds?.imdbId,
+            )
+        } else {
+            val d = api.movie(id)
+            PreviewInfo(
+                d.title, d.overview, d.posterPath, d.backdropPath,
+                listOfNotNull(
+                    "Film", d.releaseDate?.take(4)?.takeIf { it.isNotBlank() },
+                    d.runtime?.takeIf { it > 0 }?.let { "$it min" },
+                ).joinToString(" · "),
+                d.imdbId,
+            )
+        }
 
     // ---- aggiunta ----
 

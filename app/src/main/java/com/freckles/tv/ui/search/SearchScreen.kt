@@ -45,7 +45,7 @@ import com.freckles.tv.ui.common.AddMenu
 import com.freckles.tv.ui.common.LocalRepo
 
 @Composable
-fun SearchScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
+fun SearchScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpenPreview: (String, Int) -> Unit) {
     val repo = LocalRepo.current
     val vm: SearchViewModel = viewModel(factory = viewModelFactory { initializer { SearchViewModel(repo) } })
     val query by vm.query.collectAsStateWithLifecycle()
@@ -90,6 +90,7 @@ fun SearchScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
                                 .clickable {
                                     if (showId != null) onOpenShow(showId)
                                     else if (movieId != null) onOpenMovie(movieId)
+                                    else onOpenPreview(item.mediaType, item.id)
                                 }
                                 .padding(4.dp),
                             verticalAlignment = Alignment.CenterVertically,
