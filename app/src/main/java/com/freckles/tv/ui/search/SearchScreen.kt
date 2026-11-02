@@ -84,10 +84,14 @@ fun SearchScreen(
             val empty = if (mode == SearchMode.Media) state.results.isEmpty() else state.games.isEmpty()
             when {
                 state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                state.error != null -> Text(
-                    state.error!!, Modifier.align(Alignment.Center).padding(24.dp),
-                    color = MaterialTheme.colorScheme.error,
-                )
+                state.error != null -> Column(
+                    Modifier.align(Alignment.Center).padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(state.error!!, color = MaterialTheme.colorScheme.error)
+                    androidx.compose.material3.OutlinedButton(onClick = vm::retry) { Text("Riprova") }
+                }
                 query.trim().length >= 2 && empty -> Text(
                     "Nessun risultato", Modifier.align(Alignment.Center),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

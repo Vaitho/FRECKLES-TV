@@ -37,13 +37,18 @@ class SearchViewModel(repo: Repository) : ViewModel() {
         _query.value = q
     }
 
+    private val _retry = MutableStateFlow(0)
+    fun retry() {
+        _retry.value++
+    }
+
     fun onMode(m: SearchMode) {
         _mode.value = m
     }
 
-    val state: StateFlow<SearchUi> = combine(_query.debounce(400), _mode) { q, m -> q.trim() to m }
+    val state: StateFlow<SearchUi> = combine(_query.debounce(400), _mode, _retry) { q, m, r -> Triple(q.trim(), m, r) }
         .distinctUntilChanged()
-        .flatMapLatest { (q, m) ->
+        .flatMapLatest { (q, m, _) ->
             flow {
                 if (q.length < 2) {
                     emit(SearchUi())
@@ -53,10 +58,19 @@ class SearchViewModel(repo: Repository) : ViewModel() {
                         runCatching {
                             if (m == SearchMode.Media) SearchUi(results = repo.search(q))
                             else SearchUi(games = repo.searchGames(q))
-                        }.getOrElse { SearchUi(error = "Ricerca non riuscita: ${it.message ?: "controlla la connessione"}") }
+                        }.getOrElse { SearchUi(error = errorText(it, m)) }
                     )
                 }
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SearchUi())
+}
+
+private fun errorText(e: Throwable, mode: SearchMode): String {
+    val service = if (mode == SearchMode.Games) "Il servizio dei giochi (RAWG)" else "Il servizio di film e serie (TMDB)"
+    return when (e) {
+        is java.net.SocketTimeoutException -> "$service non risponde in questo momento. Riprova tra poco."
+        is java.net.UnknownHostException -> "Nessuna connessione a internet."
+        else -> "Ricerca non riuscita: ${e.message ?: "errore sconosciuto"}"
+    }
 }

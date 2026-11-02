@@ -63,6 +63,8 @@ interface RawgApi {
     companion object {
         fun create(): RawgApi {
             val client = OkHttpClient.Builder()
+                .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
                 .addInterceptor { chain ->
                     val req = chain.request()
                     val url = req.url.newBuilder().addQueryParameter("key", BuildConfig.RAWG_API_KEY).build()
