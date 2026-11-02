@@ -36,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
@@ -62,7 +61,6 @@ fun formatHours(minutes: Int): String {
 fun GameDetailScreen(id: Long, onBack: () -> Unit) {
     val repo = LocalRepo.current
     val game by remember(id) { repo.observeGame(id) }.collectAsStateWithLifecycle(null)
-    val uri = LocalUriHandler.current
     val haptic = LocalHapticFeedback.current
     var confirmDelete by remember { mutableStateOf(false) }
     var editHours by remember { mutableStateOf(false) }
@@ -137,12 +135,6 @@ fun GameDetailScreen(id: Long, onBack: () -> Unit) {
                 Text(g.platforms, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (!g.overview.isNullOrBlank()) Text(g.overview)
-            Text(
-                "Dati dei giochi: RAWG",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickableNoRipple { uri.openUri("https://rawg.io") },
-            )
             Spacer(Modifier.navigationBarsPadding().height(32.dp))
         }
     }

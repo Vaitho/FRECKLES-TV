@@ -160,12 +160,6 @@ fun SearchScreen(
                             }
                         }
                     }
-                    item {
-                        Text(
-                            "Dati dei giochi: RAWG", style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
             }
         }

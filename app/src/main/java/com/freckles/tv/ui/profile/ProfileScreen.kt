@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +59,7 @@ import coil.compose.AsyncImage
 import com.freckles.tv.data.prefs.Profile
 import com.freckles.tv.data.prefs.UserPrefs
 import com.freckles.tv.data.remote.posterUrl
+import com.freckles.tv.data.remote.rawgThumb
 import com.freckles.tv.ui.common.Avatar
 import com.freckles.tv.ui.common.AvatarColors
 import com.freckles.tv.ui.common.AvatarEmojis
@@ -68,7 +69,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 /** Un titolo della libreria che può essere scelto tra i preferiti. */
-private data class Candidate(val key: String, val title: String, val posterPath: String?, val kind: String)
+private data class Candidate(val key: String, val title: String, val image: String?, val kind: String)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -78,21 +79,21 @@ fun ProfileScreen(
     onBack: () -> Unit,
     onOpenShow: (Long) -> Unit,
     onOpenMovie: (Long) -> Unit,
+    onOpenGame: (Long) -> Unit,
 ) {
     val repo = LocalRepo.current
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val shows by repo.allShows.collectAsStateWithLifecycle(emptyList())
     val movies by repo.allMovies.collectAsStateWithLifecycle(emptyList())
+    val games by repo.allGames.collectAsStateWithLifecycle(emptyList())
     var name by remember(profile.name) { mutableStateOf(profile.name ?: "") }
-    var picking by remember { mutableStateOf(false) }
 
-    val library = remember(shows, movies) {
-        shows.map { Candidate("s:${it.id}", it.title, it.posterPath, "Serie") } +
-            movies.map { Candidate("m:${it.id}", it.title, it.posterPath, "Film") }
+    val mediaLibrary = remember(shows, movies) {
+        shows.map { Candidate("s:${it.id}", it.title, posterUrl(it.posterPath), "Serie") } +
+            movies.map { Candidate("m:${it.id}", it.title, posterUrl(it.posterPath), "Film") }
     }
-    val byKey = library.associateBy { it.key }
-    val favorites = profile.favorites.mapNotNull { byKey[it] }
+    val gameLibrary = remember(games) { games.map { Candidate("g:${it.id}", it.title, rawgThumb(it.imageUrl), "Gioco") } }
 
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) scope.launch(Dispatchers.IO) {
@@ -123,7 +124,7 @@ fun ProfileScreen(
         }
         if (profile.photoPath != null) {
             TextButton(
-                onClick = { scope.launch { profile.photoPath.let { File(it).delete() }; prefs.setPhoto(null) } },
+                onClick = { scope.launch { File(profile.photoPath).delete(); prefs.setPhoto(null) } },
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             ) { Text("Rimuovi foto") }
         }
@@ -171,50 +172,78 @@ fun ProfileScreen(
             }
         }
 
-        Text("I miei 5 preferiti", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Text(
-            "Le serie e i film che ti rappresentano. Compaiono anche nella Home.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        FavoritesSection(
+            title = "I miei 5 film e serie preferiti",
+            subtitle = "Le serie e i film che ti rappresentano. Compaiono anche nella Home.",
+            library = mediaLibrary,
+            selected = profile.favorites,
+            onChange = { scope.launch { prefs.setFavorites(it) } },
+            onOpen = { key ->
+                val id = key.drop(2).toLong()
+                if (key.startsWith("s:")) onOpenShow(id) else onOpenMovie(id)
+            },
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            repeat(5) { i ->
-                val item = favorites.getOrNull(i)
-                Box(
-                    Modifier.weight(1f).aspectRatio(2f / 3f).clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .clickable {
-                            if (item == null) picking = true
-                            else if (item.kind == "Serie") onOpenShow(item.key.removePrefix("s:").toLong())
-                            else onOpenMovie(item.key.removePrefix("m:").toLong())
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (item == null) {
-                        Icon(Icons.Filled.Add, "Aggiungi preferito", tint = MaterialTheme.colorScheme.primary)
-                    } else {
-                        AsyncImage(posterUrl(item.posterPath), item.title, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
-                        Box(
-                            Modifier.align(Alignment.TopEnd).padding(4.dp).size(24.dp).clip(CircleShape)
-                                .background(androidx.compose.ui.graphics.Color(0xAA000000))
-                                .clickable { scope.launch { prefs.setFavorites(profile.favorites - item.key) } },
-                            contentAlignment = Alignment.Center,
-                        ) { Icon(Icons.Filled.Close, "Rimuovi", tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(14.dp)) }
-                    }
+        FavoritesSection(
+            title = "I miei 5 videogiochi preferiti",
+            subtitle = "Scegli tra i giochi della tua libreria. Compaiono anche nella Home.",
+            library = gameLibrary,
+            selected = profile.gameFavorites,
+            onChange = { scope.launch { prefs.setGameFavorites(it) } },
+            onOpen = { key -> onOpenGame(key.drop(2).toLong()) },
+        )
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** Cinque posti per i preferiti, con selettore dalla libreria. */
+@Composable
+private fun FavoritesSection(
+    title: String,
+    subtitle: String,
+    library: List<Candidate>,
+    selected: List<String>,
+    onChange: (List<String>) -> Unit,
+    onOpen: (String) -> Unit,
+) {
+    var picking by remember { mutableStateOf(false) }
+    val byKey = library.associateBy { it.key }
+    val favorites = selected.mapNotNull { byKey[it] }
+
+    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        repeat(5) { i ->
+            val item = favorites.getOrNull(i)
+            Box(
+                Modifier.weight(1f).aspectRatio(2f / 3f).clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .clickable { if (item == null) picking = true else onOpen(item.key) },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (item == null) {
+                    Icon(Icons.Filled.Add, "Aggiungi preferito", tint = MaterialTheme.colorScheme.primary)
+                } else {
+                    AsyncImage(item.image, item.title, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+                    Box(
+                        Modifier.align(Alignment.TopEnd).padding(4.dp).size(24.dp).clip(CircleShape)
+                            .background(Color(0xAA000000))
+                            .clickable { onChange(selected - item.key) },
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Filled.Close, "Rimuovi", tint = Color.White, modifier = Modifier.size(14.dp)) }
                 }
             }
         }
-        if (favorites.size < 5) {
-            OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Add, null)
-                Text("  Scegli dalla libreria")
-            }
+    }
+    if (favorites.size < 5) {
+        OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Filled.Add, null)
+            Text("  Scegli dalla libreria")
         }
-        Spacer(Modifier.height(24.dp))
     }
 
     if (picking) {
         var query by remember { mutableStateOf("") }
-        val candidates = library.filter { it.key !in profile.favorites && it.title.contains(query, ignoreCase = true) }
+        val candidates = library.filter { it.key !in selected && it.title.contains(query, ignoreCase = true) }
         AlertDialog(
             onDismissRequest = { picking = false },
             title = { Text("Aggiungi ai preferiti") },
@@ -227,13 +256,13 @@ fun ProfileScreen(
                         items(candidates, key = { it.key }) { c ->
                             Row(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
-                                    scope.launch { prefs.setFavorites(profile.favorites + c.key) }
-                                    if (profile.favorites.size + 1 >= 5) picking = false
+                                    onChange(selected + c.key)
+                                    if (selected.size + 1 >= 5) picking = false
                                 }.padding(6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 AsyncImage(
-                                    posterUrl(c.posterPath), null,
+                                    c.image, null,
                                     Modifier.size(40.dp, 60.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop,
                                 )
                                 Column(Modifier.padding(start = 12.dp)) {
@@ -249,4 +278,3 @@ fun ProfileScreen(
         )
     }
 }
-

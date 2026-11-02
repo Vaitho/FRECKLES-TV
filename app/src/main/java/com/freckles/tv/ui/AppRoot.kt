@@ -140,12 +140,12 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                 popEnterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f) },
                 popExitTransition = { fadeOut(tween(120)) },
             ) {
-                composable(Tab.Home.route) { HomeScreen(profile, openShow, openMovie, openPreview) }
+                composable(Tab.Home.route) { HomeScreen(profile, openShow, openMovie, openPreview, openGame) }
                 composable(Tab.Search.route) { SearchScreen(openShow, openMovie, openPreview, openGame) }
                 composable(Tab.Library.route) { LibraryScreen(openShow, openMovie, openGame) }
                 composable(Tab.Stats.route) { StatsScreen() }
                 composable("settings") { SettingsScreen { nav.popBackStack() } }
-                composable("profile") { ProfileScreen(profile, prefs, { nav.popBackStack() }, openShow, openMovie) }
+                composable("profile") { ProfileScreen(profile, prefs, { nav.popBackStack() }, openShow, openMovie, openGame) }
                 composable("show/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
                     ShowDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
                 }

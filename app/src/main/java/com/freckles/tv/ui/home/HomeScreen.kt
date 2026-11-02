@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.prefs.Profile
 import com.freckles.tv.data.remote.SearchItem
+import com.freckles.tv.data.remote.rawgThumb
 import com.freckles.tv.ui.common.AddMenu
 import com.freckles.tv.ui.common.CornerButton
 import com.freckles.tv.ui.common.LocalRepo
@@ -37,10 +38,11 @@ import com.freckles.tv.ui.common.PosterCard
 import java.time.LocalTime
 
 @Composable
-fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpenPreview: (String, Int) -> Unit) {
+fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpenPreview: (String, Int) -> Unit, onOpenGame: (Long) -> Unit) {
     val repo = LocalRepo.current
     val shows by repo.allShows.collectAsStateWithLifecycle(emptyList())
     val movies by repo.allMovies.collectAsStateWithLifecycle(emptyList())
+    val games by repo.allGames.collectAsStateWithLifecycle(emptyList())
     val next by remember { repo.observeNext() }.collectAsStateWithLifecycle(emptyList())
     val trending by produceState<List<SearchItem>>(emptyList()) {
         value = runCatching { repo.trending() }.getOrDefault(emptyList())
@@ -98,10 +100,29 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
         }
         if (favs.isNotEmpty()) {
             item {
-                Section("I tuoi preferiti") {
+                Section("I tuoi film e serie preferiti") {
                     LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(favs, key = { it.first.first }) { (info, open) ->
                             PosterCard(title = info.second, posterPath = info.third, modifier = Modifier.width(120.dp), onClick = open)
+                        }
+                    }
+                }
+            }
+        }
+
+        val gameFavs = profile.gameFavorites.mapNotNull { key ->
+            val id = key.drop(2).toLongOrNull() ?: return@mapNotNull null
+            games.firstOrNull { it.id == id }
+        }
+        if (gameFavs.isNotEmpty()) {
+            item {
+                Section("I tuoi videogiochi preferiti") {
+                    LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(gameFavs, key = { it.id }) { g ->
+                            PosterCard(
+                                title = g.title, posterPath = null, imageUrl = rawgThumb(g.imageUrl),
+                                modifier = Modifier.width(120.dp), onClick = { onOpenGame(g.id) },
+                            )
                         }
                     }
                 }

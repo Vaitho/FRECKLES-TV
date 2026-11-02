@@ -24,6 +24,8 @@ data class Profile(
     val accent: String = "violet",
     /** Fino a 5 preferiti, nel formato "s:<id serie>" o "m:<id film>". */
     val favorites: List<String> = emptyList(),
+    /** Fino a 5 videogiochi preferiti, nel formato "g:<id gioco>". */
+    val gameFavorites: List<String> = emptyList(),
 )
 
 class UserPrefs(private val context: Context) {
@@ -35,6 +37,7 @@ class UserPrefs(private val context: Context) {
         val mode = stringPreferencesKey("theme_mode")
         val accent = stringPreferencesKey("theme_accent")
         val favs = stringPreferencesKey("top_favorites")
+        val gameFavs = stringPreferencesKey("top_game_favorites")
     }
 
     val profile: Flow<Profile> = context.store.data.map { p ->
@@ -46,6 +49,7 @@ class UserPrefs(private val context: Context) {
             themeMode = p[K.mode] ?: "system",
             accent = p[K.accent] ?: "violet",
             favorites = p[K.favs]?.split(",")?.filter { it.isNotBlank() } ?: emptyList(),
+            gameFavorites = p[K.gameFavs]?.split(",")?.filter { it.isNotBlank() } ?: emptyList(),
         )
     }
 
@@ -59,5 +63,6 @@ class UserPrefs(private val context: Context) {
     suspend fun setThemeMode(mode: String) = edit { it[K.mode] = mode }
     suspend fun setAccent(id: String) = edit { it[K.accent] = id }
     suspend fun setFavorites(list: List<String>) = edit { it[K.favs] = list.take(5).joinToString(",") }
+    suspend fun setGameFavorites(list: List<String>) = edit { it[K.gameFavs] = list.take(5).joinToString(",") }
 }
 
