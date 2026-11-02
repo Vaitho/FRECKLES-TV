@@ -131,7 +131,8 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
             val openShow = { id: Long -> nav.navigate("show/$id") }
             val openMovie = { id: Long -> nav.navigate("movie/$id") }
             val openGame = { id: Long -> nav.navigate("game/$id") }
-            val openGamePreview = { rawgId: Int -> nav.navigate("gamepreview/$rawgId") }
+            // extId ("igdb:123") nel percorso: i due punti diventano "_" e tornano al loro posto nella destinazione
+            val openGamePreview = { extId: String -> nav.navigate("gamepreview/${extId.replace(':', '_')}") }
             val openPreview = { type: String, id: Int -> nav.navigate("preview/$type/$id") }
             NavHost(
                 nav,
@@ -163,9 +164,9 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                         }
                     }
                 }
-                composable("gamepreview/{rawgId}", listOf(navArgument("rawgId") { type = NavType.IntType })) {
-                    GamePreviewScreen(it.arguments!!.getInt("rawgId"), { nav.popBackStack() }) { libId ->
-                        nav.navigate("game/$libId") { popUpTo("gamepreview/{rawgId}") { inclusive = true } }
+                composable("gamepreview/{extId}", listOf(navArgument("extId") { type = NavType.StringType })) {
+                    GamePreviewScreen(it.arguments!!.getString("extId")!!.replaceFirst('_', ':'), { nav.popBackStack() }) { libId ->
+                        nav.navigate("game/$libId") { popUpTo("gamepreview/{extId}") { inclusive = true } }
                     }
                 }
                 composable("game/{id}", listOf(navArgument("id") { type = NavType.LongType })) {

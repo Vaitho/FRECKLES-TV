@@ -24,7 +24,8 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"${localProps.getProperty("TMDB_API_KEY", "")}\"")
-        buildConfigField("String", "RAWG_API_KEY", "\"${localProps.getProperty("RAWG_API_KEY", "")}\"")
+        buildConfigField("String", "IGDB_CLIENT_ID", "\"${localProps.getProperty("IGDB_CLIENT_ID", "")}\"")
+        buildConfigField("String", "IGDB_CLIENT_SECRET", "\"${localProps.getProperty("IGDB_CLIENT_SECRET", "")}\"")
     }
 
     // Firma di release: legge keystore e password da local.properties (mai nel repo).

@@ -7,8 +7,9 @@ import com.freckles.tv.data.db.MovieEntity
 import com.freckles.tv.data.db.ShowEntity
 import com.freckles.tv.data.db.GameEntity
 import com.freckles.tv.data.db.GameStatus
-import com.freckles.tv.data.remote.RawgApi
-import com.freckles.tv.data.remote.RawgGame
+import com.freckles.tv.data.remote.GameCatalog
+import com.freckles.tv.data.remote.GameInfo
+import com.freckles.tv.data.remote.GameSearch
 import com.freckles.tv.data.remote.SearchItem
 import com.freckles.tv.data.remote.TmdbApi
 import com.freckles.tv.data.remote.TvDetails
@@ -36,7 +37,7 @@ data class PreviewInfo(
     val imdbId: String?,
 )
 
-class Repository(private val db: AppDatabase, private val api: TmdbApi, private val rawg: RawgApi) {
+class Repository(private val db: AppDatabase, private val api: TmdbApi, private val catalog: GameCatalog) {
     val importer = TvTimeImporter(db, api, this)
 
     /** Scope di app: le operazioni di rete non si interrompono se l'utente cambia schermata. */
@@ -106,36 +107,34 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
             )
         }
 
-    // ---- videogiochi (RAWG) ----
+    // ---- videogiochi (IGDB, con Steam come riserva) ----
 
-    suspend fun searchGames(query: String): List<RawgGame> = rawg.search(query).results
+    suspend fun searchGames(query: String): GameSearch = catalog.search(query)
 
-    fun gamePendingKey(rawgId: Int) = "game:$rawgId"
+    fun gamePendingKey(extId: String) = "game:$extId"
 
-    suspend fun gamePreview(rawgId: Int) = rawg.game(rawgId)
+    suspend fun gamePreview(extId: String): GameInfo = catalog.details(extId)
 
-    fun addGame(rawgId: Int, status: String) {
-        val key = gamePendingKey(rawgId)
+    fun addGame(extId: String, status: String) {
+        val key = gamePendingKey(extId)
         if (key in _pending.value) return
         _pending.update { it + key }
         launchReporting("Impossibile aggiungere il gioco") {
-            if (games.byRawgId(rawgId) == null) {
-                addGameNow(rawgId, status)
+            if (games.byExtId(extId) == null) {
+                addGameNow(extId, status)
                 _messages.tryEmit("Gioco aggiunto")
             }
         }.invokeOnCompletion { _pending.update { it - key } }
     }
 
-    suspend fun addGameNow(rawgId: Int, status: String = GameStatus.BACKLOG): Long {
-        games.byRawgId(rawgId)?.let { return it.id }
-        val d = rawg.game(rawgId)
+    suspend fun addGameNow(extId: String, status: String = GameStatus.BACKLOG): Long {
+        games.byExtId(extId)?.let { return it.id }
+        val d = catalog.details(extId)
         return games.insert(
             GameEntity(
-                rawgId = d.id, title = d.name, overview = d.description?.takeIf { it.isNotBlank() },
-                imageUrl = d.backgroundImage, released = d.released,
-                platforms = d.platforms.orEmpty().joinToString(", ") { it.platform.name }.ifBlank { null },
-                genres = d.genres.orEmpty().joinToString(", ") { it.name }.ifBlank { null },
-                status = status,
+                extId = extId, title = d.title, overview = d.overview?.takeIf { it.isNotBlank() },
+                imageUrl = d.imageUrl, backdropUrl = d.backdropUrl, released = d.released,
+                platforms = d.platforms, genres = d.genres, status = status,
                 finishedAt = if (status == GameStatus.FINISHED) System.currentTimeMillis() else null,
             )
         )

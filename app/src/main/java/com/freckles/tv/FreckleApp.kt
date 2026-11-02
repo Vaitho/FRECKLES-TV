@@ -9,8 +9,8 @@ class FreckleApp : Application() {
     // DI manuale: niente Hilt, l'app è piccola.
     val db by lazy { AppDatabase.create(this) }
     val api by lazy { TmdbApi.create() }
-    val rawg by lazy { com.freckles.tv.data.remote.RawgApi.create() }
-    val repository by lazy { com.freckles.tv.data.Repository(db, api, rawg) }
+    val catalog by lazy { com.freckles.tv.data.remote.GameCatalog() }
+    val repository by lazy { com.freckles.tv.data.Repository(db, api, catalog) }
     val prefs by lazy { UserPrefs(this) }
 
     override fun onCreate() {

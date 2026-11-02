@@ -90,13 +90,15 @@ object GameStatus {
     }
 }
 
-@Entity(tableName = "games", indices = [Index(value = ["rawgId"], unique = true)])
+@Entity(tableName = "games", indices = [Index(value = ["extId"], unique = true)])
 data class GameEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val rawgId: Int,
+    /** Identificatore esterno con la fonte: "igdb:123", "steam:620" o "rawg:3328" (giochi aggiunti in passato). */
+    val extId: String,
     val title: String,
     val overview: String? = null,
     val imageUrl: String? = null,
+    val backdropUrl: String? = null,
     val released: String? = null,
     val platforms: String? = null,
     val genres: String? = null,

@@ -19,7 +19,15 @@ import java.time.Instant
 // ---- formato del file (export TV Time) ----
 
 @Serializable
-data class ImportId(val tvdb: Int? = null, val imdb: String? = null, val tmdb: Int? = null, val rawg: Int? = null)
+data class ImportId(
+    val tvdb: Int? = null,
+    val imdb: String? = null,
+    val tmdb: Int? = null,
+    /** Vecchi backup: id RAWG. */
+    val rawg: Int? = null,
+    /** Giochi: "igdb:123", "steam:620", "rawg:3328". */
+    val ext: String? = null,
+)
 
 @Serializable
 data class ImportEpisode(
@@ -172,9 +180,15 @@ class TvTimeImporter(
     }
 
     private suspend fun importGame(g: ImportGame) {
-        val rawgId = g.id.rawg ?: repo.searchGames(g.title).firstOrNull()?.id ?: error("non trovato su RAWG")
-        repo.addGameNow(rawgId)
-        val row = db.gameDao().byRawgId(rawgId) ?: return
+        val saved = g.id.ext ?: g.id.rawg?.let { "rawg:$it" }
+        // Già in libreria con lo stesso id (anche un vecchio "rawg:"): niente rete. Altrimenti lo cerco per titolo.
+        val existing = saved?.let { db.gameDao().byExtId(it) }
+        val extId = existing?.extId
+            ?: saved?.takeIf { !it.startsWith("rawg:") }
+            ?: repo.searchGames(g.title).items.firstOrNull()?.extId
+            ?: error("non trovato")
+        repo.addGameNow(extId)
+        val row = db.gameDao().byExtId(extId) ?: return
         db.gameDao().update(
             row.copy(
                 status = g.status, minutesPlayed = maxOf(row.minutesPlayed, g.minutesPlayed),
@@ -210,7 +224,7 @@ class TvTimeImporter(
         }
         val games = db.gameDao().listAll().map { g ->
             ImportGame(
-                id = ImportId(rawg = g.rawgId), title = g.title, status = g.status, minutesPlayed = g.minutesPlayed,
+                id = ImportId(ext = g.extId), title = g.title, status = g.status, minutesPlayed = g.minutesPlayed,
                 rating = g.rating, isFavorite = g.isFavorite, createdAt = Instant.ofEpochMilli(g.addedAt).toString(),
                 finishedAt = g.finishedAt?.let { Instant.ofEpochMilli(it).toString() },
             )

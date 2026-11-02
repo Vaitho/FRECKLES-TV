@@ -45,7 +45,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
 import com.freckles.tv.data.db.GameStatus
 import com.freckles.tv.data.remote.posterUrl
-import com.freckles.tv.data.remote.rawgThumb
 import com.freckles.tv.ui.common.AddMenu
 import com.freckles.tv.ui.common.LocalRepo
 
@@ -55,7 +54,7 @@ fun SearchScreen(
     onOpenMovie: (Long) -> Unit,
     onOpenPreview: (String, Int) -> Unit,
     onOpenGame: (Long) -> Unit,
-    onOpenGamePreview: (Int) -> Unit,
+    onOpenGamePreview: (String) -> Unit,
 ) {
     val repo = LocalRepo.current
     val vm: SearchViewModel = viewModel(factory = viewModelFactory { initializer { SearchViewModel(repo) } })
@@ -133,16 +132,22 @@ fun SearchScreen(
                     contentPadding = PaddingValues(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(state.games, key = { it.id }) { g ->
-                        val libId = games.firstOrNull { it.rawgId == g.id }?.id
+                    if (state.gameSource == "steam") item(key = "steam-note") {
+                        Text(
+                            "Risultati da Steam: la fonte principale non risponde in questo momento (solo giochi PC).",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    items(state.games, key = { it.extId }) { g ->
+                        val libId = games.firstOrNull { it.extId == g.extId }?.id
                         ResultRow(
-                            image = rawgThumb(g.backgroundImage),
-                            title = g.name,
-                            subtitle = listOfNotNull(g.year, g.platformNames.take(3).joinToString(", ").ifBlank { null }).joinToString(" · "),
-                            onClick = { if (libId != null) onOpenGame(libId) else onOpenGamePreview(g.id) },
+                            image = g.imageUrl,
+                            title = g.title,
+                            subtitle = listOfNotNull(g.year, g.platforms).joinToString(" · "),
+                            onClick = { if (libId != null) onOpenGame(libId) else onOpenGamePreview(g.extId) },
                         ) {
                             var menu by remember { mutableStateOf(false) }
-                            if (repo.gamePendingKey(g.id) in pending) {
+                            if (repo.gamePendingKey(g.extId) in pending) {
                                 CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp), strokeWidth = 3.dp)
                             } else if (libId != null) {
                                 Icon(Icons.Filled.CheckCircle, "Già in libreria", tint = MaterialTheme.colorScheme.primary)
@@ -153,7 +158,7 @@ fun SearchScreen(
                                         listOf(GameStatus.BACKLOG, GameStatus.PLAYING, GameStatus.FINISHED).forEach { s ->
                                             DropdownMenuItem(
                                                 text = { Text(GameStatus.label(s)) },
-                                                onClick = { menu = false; repo.addGame(g.id, s) },
+                                                onClick = { menu = false; repo.addGame(g.extId, s) },
                                             )
                                         }
                                     }

@@ -120,7 +120,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         ) { Text("Controlla nuove stagioni adesso") }
 
         Text(
-            "Dati di film e serie: TMDB. Dati dei videogiochi: RAWG. Link IMDb solo come collegamento.",
+            "Dati di film e serie: TMDB. Dati dei videogiochi: IGDB (riserva: Steam). Link IMDb solo come collegamento.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 

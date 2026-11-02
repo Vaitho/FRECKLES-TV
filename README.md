@@ -7,7 +7,7 @@ Funziona offline: tutti i dati stanno sul telefono (database Room). La rete serv
 ## Funzioni
 
 - **Serie e film** da [TMDB](https://www.themoviedb.org/): ricerca, anteprima, "da vedere" o "già visto", episodi spuntabili, stagioni intere in un tocco, link a IMDb.
-- **Videogiochi** da [RAWG](https://rawg.io/): stato (da giocare, in corso, finito, abbandonato), ore giocate inserite a mano, voto.
+- **Videogiochi** da [IGDB](https://www.igdb.com/) (Twitch), con [Steam](https://store.steampowered.com/) come riserva automatica se IGDB non risponde: stato (da giocare, in corso, finito, abbandonato), ore giocate inserite a mano, voto, anteprima con durata media.
 - **Statistiche**: tempo totale, serie più viste, generi preferiti, ore per anno e per mese.
 - **Campanella**: controllo ogni ~12 ore delle serie seguite e notifica quando esce o viene annunciata una nuova stagione.
 - **Profilo**: nome, avatar (emoji o foto), 5 film/serie e 5 videogiochi preferiti, tema chiaro/scuro e 7 colori (+ Material You).
@@ -24,11 +24,12 @@ Requisiti: **Android Studio** (recente, con il suo JDK incluso) e un telefono o 
    ```properties
    sdk.dir=C\:/Users/<utente>/AppData/Local/Android/Sdk
    TMDB_API_KEY=<chiave TMDB v3>
-   RAWG_API_KEY=<chiave RAWG>
+   IGDB_CLIENT_ID=<Client ID di Twitch>
+   IGDB_CLIENT_SECRET=<Client Secret di Twitch>
    ```
 
    - Chiave TMDB gratuita: account su themoviedb.org → Impostazioni → API.
-   - Chiave RAWG gratuita: rawg.io/apidocs.
+   - IGDB: account Twitch (con autenticazione a due fattori) → dev.twitch.tv/console → registra un'applicazione → copia Client ID e Client Secret. Il token si rinnova da solo. Steam non richiede nessuna chiave.
 3. Premi **Run**, oppure da terminale:
 
    ```bash
@@ -62,8 +63,8 @@ Nota: il controllo lint della release è disattivato perché il lint di AGP 8.7 
 ```
 app/src/main/java/com/freckles/tv/
 ├── data/
-│   ├── db/          Room: entità, DAO, database (schemi in app/schemas, migrazioni automatiche)
-│   ├── remote/      client TMDB e RAWG (Retrofit + kotlinx.serialization)
+│   ├── db/          Room: entità, DAO, database (schemi in app/schemas, migrazioni)
+│   ├── remote/      client TMDB (Retrofit) e catalogo giochi IGDB + Steam (OkHttp)
 │   ├── importer/    import TV Time ed export/import del backup
 │   ├── prefs/       profilo e preferenze (DataStore)
 │   └── Repository.kt
@@ -75,4 +76,4 @@ app/src/main/java/com/freckles/tv/
 
 ## Crediti
 
-Dati di film e serie: TMDB. Dati dei videogiochi: RAWG. Questo prodotto usa le API di TMDB ma non è approvato né certificato da TMDB.
+Dati di film e serie: TMDB. Dati dei videogiochi: IGDB (e Steam come riserva). Questo prodotto usa le API di TMDB ma non è approvato né certificato da TMDB.

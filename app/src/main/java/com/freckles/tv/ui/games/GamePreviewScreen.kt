@@ -32,25 +32,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.db.GameStatus
-import com.freckles.tv.data.remote.RawgDetails
+import com.freckles.tv.data.remote.GameInfo
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.detail.DetailHeader
 
-/** Anteprima di un gioco RAWG non ancora in libreria, con i pulsanti per aggiungerlo. */
+/** Anteprima di un gioco non ancora in libreria, con i pulsanti per aggiungerlo. */
 @Composable
-fun GamePreviewScreen(rawgId: Int, onBack: () -> Unit, onAdded: (Long) -> Unit) {
+fun GamePreviewScreen(extId: String, onBack: () -> Unit, onAdded: (Long) -> Unit) {
     val repo = LocalRepo.current
     var attempt by remember { mutableIntStateOf(0) }
-    val info by produceState<Result<RawgDetails>?>(null, rawgId, attempt) {
+    val info by produceState<Result<GameInfo>?>(null, extId, attempt) {
         value = null
-        value = runCatching { repo.gamePreview(rawgId) }
+        value = runCatching { repo.gamePreview(extId) }
     }
     val games by repo.allGames.collectAsStateWithLifecycle(emptyList())
     val pending by repo.pending.collectAsStateWithLifecycle()
-    val adding = repo.gamePendingKey(rawgId) in pending
+    val adding = repo.gamePendingKey(extId) in pending
     var requested by remember { mutableStateOf(false) }
 
-    val libId = games.firstOrNull { it.rawgId == rawgId }?.id
+    val libId = games.firstOrNull { it.extId == extId }?.id
     LaunchedEffect(libId, requested) { if (libId != null && requested) onAdded(libId) }
 
     val result = info
@@ -70,20 +70,17 @@ fun GamePreviewScreen(rawgId: Int, onBack: () -> Unit, onAdded: (Long) -> Unit) 
         else -> {
             val d = result.getOrThrow()
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                DetailHeader(d.backgroundImage, d.name, onBack)
+                DetailHeader(d.backdropUrl ?: d.imageUrl, d.title, onBack)
                 Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    val meta = listOfNotNull(
-                        "Videogioco", d.released?.take(4)?.takeIf { it.isNotBlank() },
-                        d.genres.orEmpty().take(3).joinToString(", ") { it.name }.ifBlank { null },
-                    ).joinToString(" · ")
+                    val meta = listOfNotNull("Videogioco", d.released?.take(4)?.takeIf { it.isNotBlank() }, d.genres).joinToString(" · ")
                     Text(meta, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (d.playtime > 0) {
-                        Text("Durata media: circa ${d.playtime} ore", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (d.hours != null) {
+                        Text("Durata media: circa ${d.hours} ore", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         listOf(GameStatus.BACKLOG, GameStatus.PLAYING, GameStatus.FINISHED).forEachIndexed { i, s ->
                             val enabled = !adding && !requested
-                            val onClick = { requested = true; repo.addGame(rawgId, s) }
+                            val onClick = { requested = true; repo.addGame(extId, s) }
                             if (i == 0) {
                                 Button(onClick = onClick, enabled = enabled, modifier = Modifier.weight(1f)) { Text(GameStatus.label(s), maxLines = 1) }
                             } else {
@@ -97,12 +94,11 @@ fun GamePreviewScreen(rawgId: Int, onBack: () -> Unit, onAdded: (Long) -> Unit) 
                             Text("  Aggiunta in corso…", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    val platforms = d.platforms.orEmpty().joinToString(", ") { it.platform.name }
-                    if (platforms.isNotBlank()) {
+                    if (!d.platforms.isNullOrBlank()) {
                         Text("Piattaforme", style = MaterialTheme.typography.titleSmall)
-                        Text(platforms, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(d.platforms, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if (!d.description.isNullOrBlank()) Text(d.description)
+                    if (!d.overview.isNullOrBlank()) Text(d.overview)
                     Spacer(Modifier.navigationBarsPadding().height(32.dp))
                 }
             }

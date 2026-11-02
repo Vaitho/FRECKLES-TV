@@ -59,7 +59,7 @@ fun GameDetailScreen(id: Long, onBack: () -> Unit) {
     val g = game ?: run { Box(Modifier.fillMaxSize()); return }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        DetailHeader(g.imageUrl, g.title, onBack)
+        DetailHeader(g.backdropUrl ?: g.imageUrl, g.title, onBack)
         Text(
             listOfNotNull(g.released?.take(4), g.genres).joinToString(" · "),
             color = MaterialTheme.colorScheme.onSurfaceVariant,

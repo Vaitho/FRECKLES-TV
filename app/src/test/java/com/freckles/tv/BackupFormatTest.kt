@@ -60,11 +60,20 @@ class BackupFormatTest {
                 )
             ),
             movies = listOf(ImportMovie(id = ImportId(tmdb = 9, imdb = "tt1"), title = "Film", isWatched = true, watchedCount = 1)),
-            games = listOf(ImportGame(id = ImportId(rawg = 3328), title = "Gioco", status = "finished", minutesPlayed = 600, rating = 5)),
+            games = listOf(ImportGame(id = ImportId(ext = "igdb:1942"), title = "Gioco", status = "finished", minutesPlayed = 600, rating = 5)),
         )
         val text = Json { encodeDefaults = true }.encodeToString(Backup.serializer(), original)
         val back = json.decodeFromString<Backup>(text)
         assertEquals(original, back)
+    }
+
+    @Test
+    fun oldRawgBackupStillParses() {
+        val back = json.decodeFromString<Backup>("""{"version":1,"games":[{"id":{"rawg":3328},"title":"The Witcher 3","status":"finished","minutes_played":600}]}""")
+        val g = back.games.single()
+        assertEquals(3328, g.id.rawg)
+        assertEquals(null, g.id.ext)
+        assertEquals(600, g.minutesPlayed)
     }
 
     @Test

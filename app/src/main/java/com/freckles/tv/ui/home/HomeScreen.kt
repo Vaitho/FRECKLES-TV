@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.prefs.Profile
 import com.freckles.tv.data.remote.SearchItem
-import com.freckles.tv.data.remote.rawgThumb
 import com.freckles.tv.ui.common.AddMenu
 import com.freckles.tv.ui.common.CornerButton
 import com.freckles.tv.ui.common.LocalRepo
@@ -120,7 +119,7 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
                     LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(gameFavs, key = { it.id }) { g ->
                             PosterCard(
-                                title = g.title, posterPath = null, imageUrl = rawgThumb(g.imageUrl),
+                                title = g.title, posterPath = null, imageUrl = g.imageUrl,
                                 modifier = Modifier.width(120.dp), onClick = { onOpenGame(g.id) },
                             )
                         }

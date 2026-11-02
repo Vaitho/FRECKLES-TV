@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.db.GameStatus
-import com.freckles.tv.data.remote.rawgThumb
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.PosterCard
 import com.freckles.tv.util.formatHours
@@ -135,7 +134,7 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                     PosterCard(
                         title = g.title,
                         posterPath = null,
-                        imageUrl = rawgThumb(g.imageUrl),
+                        imageUrl = g.imageUrl,
                         subtitle = GameStatus.label(g.status) + if (g.minutesPlayed > 0) " · ${formatHours(g.minutesPlayed)}" else "",
                         onClick = { onOpenGame(g.id) },
                     )

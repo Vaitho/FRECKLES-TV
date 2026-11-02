@@ -59,7 +59,6 @@ import coil.compose.AsyncImage
 import com.freckles.tv.data.prefs.Profile
 import com.freckles.tv.data.prefs.UserPrefs
 import com.freckles.tv.data.remote.posterUrl
-import com.freckles.tv.data.remote.rawgThumb
 import com.freckles.tv.ui.common.Avatar
 import com.freckles.tv.ui.common.AvatarColors
 import com.freckles.tv.ui.common.AvatarEmojis
@@ -93,7 +92,7 @@ fun ProfileScreen(
         shows.map { Candidate("s:${it.id}", it.title, posterUrl(it.posterPath), "Serie") } +
             movies.map { Candidate("m:${it.id}", it.title, posterUrl(it.posterPath), "Film") }
     }
-    val gameLibrary = remember(games) { games.map { Candidate("g:${it.id}", it.title, rawgThumb(it.imageUrl), "Gioco") } }
+    val gameLibrary = remember(games) { games.map { Candidate("g:${it.id}", it.title, it.imageUrl, "Gioco") } }
 
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) scope.launch(Dispatchers.IO) {

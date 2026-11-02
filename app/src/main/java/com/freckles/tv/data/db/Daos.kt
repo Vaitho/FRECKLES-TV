@@ -170,8 +170,8 @@ interface GameDao {
     @Query("SELECT * FROM games WHERE id = :id")
     fun observe(id: Long): Flow<GameEntity?>
 
-    @Query("SELECT * FROM games WHERE rawgId = :rawgId")
-    suspend fun byRawgId(rawgId: Int): GameEntity?
+    @Query("SELECT * FROM games WHERE extId = :extId")
+    suspend fun byExtId(extId: String): GameEntity?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(game: GameEntity): Long

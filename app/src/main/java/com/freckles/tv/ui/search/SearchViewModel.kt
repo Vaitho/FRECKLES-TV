@@ -3,7 +3,7 @@ package com.freckles.tv.ui.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.freckles.tv.data.Repository
-import com.freckles.tv.data.remote.RawgGame
+import com.freckles.tv.data.remote.GameResult
 import com.freckles.tv.data.remote.SearchItem
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -22,7 +22,9 @@ enum class SearchMode { Media, Games }
 data class SearchUi(
     val loading: Boolean = false,
     val results: List<SearchItem> = emptyList(),
-    val games: List<RawgGame> = emptyList(),
+    val games: List<GameResult> = emptyList(),
+    /** "igdb" o "steam" (riserva, quando IGDB non risponde). */
+    val gameSource: String? = null,
     val error: String? = null,
 )
 
@@ -57,7 +59,7 @@ class SearchViewModel(repo: Repository) : ViewModel() {
                     emit(
                         runCatching {
                             if (m == SearchMode.Media) SearchUi(results = repo.search(q))
-                            else SearchUi(games = repo.searchGames(q))
+                            else repo.searchGames(q).let { SearchUi(games = it.items, gameSource = it.source) }
                         }.getOrElse { SearchUi(error = errorText(it, m)) }
                     )
                 }
@@ -67,7 +69,7 @@ class SearchViewModel(repo: Repository) : ViewModel() {
 }
 
 private fun errorText(e: Throwable, mode: SearchMode): String {
-    val service = if (mode == SearchMode.Games) "Il servizio dei giochi (RAWG)" else "Il servizio di film e serie (TMDB)"
+    val service = if (mode == SearchMode.Games) "Il servizio dei giochi" else "Il servizio di film e serie (TMDB)"
     return when (e) {
         is java.net.SocketTimeoutException -> "$service non risponde in questo momento. Riprova tra poco."
         is java.net.UnknownHostException -> "Nessuna connessione a internet."
