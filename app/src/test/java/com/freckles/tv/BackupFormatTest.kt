@@ -7,6 +7,7 @@ import com.freckles.tv.data.importer.ImportId
 import com.freckles.tv.data.importer.ImportMovie
 import com.freckles.tv.data.importer.ImportSeason
 import com.freckles.tv.data.importer.ImportShow
+import com.freckles.tv.data.importer.parseTvTimeArray
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -66,6 +67,31 @@ class BackupFormatTest {
         val text = Json { encodeDefaults = true }.encodeToString(Backup.serializer(), original)
         val back = json.decodeFromString<Backup>(text)
         assertEquals(original, back)
+    }
+
+    @Test
+    fun tvTimeMoviesArrayIsReadAsMovies() {
+        val text = """
+            [{"id": {"tvdb": 344830, "imdb": "tt21909764"}, "uuid": "a", "created_at": "2023-11-26T16:22:38Z",
+              "title": "My Fault", "year": 2023, "watched_at": "2023-11-26T16:22:38Z",
+              "is_watched": true, "is_favorite": false, "rewatch_count": 2},
+             {"id": {"tvdb": 1, "imdb": "tt2"}, "title": "Da vedere", "is_watched": false, "is_favorite": true, "rewatch_count": 0}]
+        """.trimIndent()
+        val back = parseTvTimeArray(text, json)
+        assertTrue(back.shows.isEmpty())
+        assertEquals(2, back.movies.size)
+        val m = back.movies[0]
+        assertEquals("tt21909764", m.id.imdb)
+        assertTrue(m.isWatched)
+        assertEquals(2, m.rewatchCount)
+        assertTrue(back.movies[1].isFavorite && !back.movies[1].isWatched)
+    }
+
+    @Test
+    fun tvTimeSeriesArrayStillReadAsShows() {
+        val back = parseTvTimeArray(tvTime, json)
+        assertEquals(1, back.shows.size)
+        assertTrue(back.movies.isEmpty())
     }
 
     @Test

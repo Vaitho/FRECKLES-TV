@@ -14,6 +14,9 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
 import java.time.Instant
 
 // ---- formato del file (export TV Time) ----
@@ -65,6 +68,8 @@ data class ImportMovie(
     @kotlinx.serialization.SerialName("is_watched") val isWatched: Boolean = false,
     @kotlinx.serialization.SerialName("watched_at") val watchedAt: String? = null,
     @kotlinx.serialization.SerialName("watched_count") val watchedCount: Int = 0,
+    /** Export film di TV Time: rivisioni oltre la prima visione. */
+    @kotlinx.serialization.SerialName("rewatch_count") val rewatchCount: Int = 0,
     val rating: Int = 0,
 )
 
@@ -83,6 +88,15 @@ data class ImportGame(
 /** Formato di export dell'app; l'import accetta anche l'array di sole serie di TV Time. */
 @Serializable
 data class Backup(val version: Int = 1, val shows: List<ImportShow> = emptyList(), val movies: List<ImportMovie> = emptyList(), val games: List<ImportGame> = emptyList())
+
+/** Gli export di TV Time sono array: le serie hanno "seasons", i film no. */
+internal fun parseTvTimeArray(text: String, json: Json): Backup {
+    val (shows, movies) = json.parseToJsonElement(text).jsonArray.partition { (it as? JsonObject)?.containsKey("seasons") == true }
+    return Backup(
+        shows = shows.map { json.decodeFromJsonElement<ImportShow>(it) },
+        movies = movies.map { json.decodeFromJsonElement<ImportMovie>(it) },
+    )
+}
 
 data class ImportState(
     val running: Boolean = false,
@@ -113,7 +127,7 @@ class TvTimeImporter(
     suspend fun import(text: String) {
         if (_state.value.running) return
         val backup = runCatching {
-            if (text.trimStart().startsWith("[")) Backup(shows = json.decodeFromString<List<ImportShow>>(text))
+            if (text.trimStart().startsWith("[")) parseTvTimeArray(text, json)
             else json.decodeFromString<Backup>(text)
         }.getOrElse {
             _state.value = ImportState(finished = true, error = "File non valido: ${it.message?.take(120)}")
@@ -175,7 +189,7 @@ class TvTimeImporter(
                 isFavorite = row.isFavorite || m.isFavorite,
                 watched = row.watched || m.isWatched,
                 watchedAt = row.watchedAt ?: if (m.isWatched) parseTime(m.watchedAt) ?: System.currentTimeMillis() else null,
-                watchCount = maxOf(row.watchCount, if (m.isWatched) maxOf(1, m.watchedCount) else 0),
+                watchCount = maxOf(row.watchCount, if (m.isWatched) maxOf(1 + m.rewatchCount, m.watchedCount) else 0),
                 addedAt = parseTime(m.createdAt) ?: row.addedAt,
                 rating = if (m.rating > 0) m.rating.coerceIn(1, 5) else row.rating,
             )
