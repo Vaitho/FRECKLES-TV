@@ -88,6 +88,13 @@ interface EpisodeDao {
     )
     suspend fun setSeasonWatched(showId: Long, season: Int, watched: Boolean, now: Long)
 
+    /** Segna come visti tutti gli episodi già usciti (esclusi gli special). */
+    @Query(
+        """UPDATE episodes SET watched = 1, watchedAt = :now, watchCount = MAX(watchCount, 1)
+           WHERE showId = :showId AND isSpecial = 0 AND watched = 0 AND airDate IS NOT NULL AND airDate <= :today"""
+    )
+    suspend fun markAiredWatched(showId: Long, today: String, now: Long)
+
     /** Minuti totali visti (rewatch inclusi), esclusi gli special. */
     @Query("SELECT COALESCE(SUM(runtime * watchCount), 0) FROM episodes WHERE isSpecial = 0 AND watchCount > 0")
     fun observeWatchedMinutes(): Flow<Long>

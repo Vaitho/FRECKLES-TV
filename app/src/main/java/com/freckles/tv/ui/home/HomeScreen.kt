@@ -1,6 +1,7 @@
 package com.freckles.tv.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +19,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -26,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.prefs.Profile
 import com.freckles.tv.data.remote.SearchItem
+import com.freckles.tv.ui.common.AddMenu
 import com.freckles.tv.ui.common.CornerButton
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.PosterCard
@@ -109,18 +113,22 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
                         val showId = shows.firstOrNull { it.tmdbId == item.id }?.id.takeIf { item.mediaType == "tv" }
                         val movieId = movies.firstOrNull { it.tmdbId == item.id }?.id.takeIf { item.mediaType == "movie" }
                         val inLibrary = showId != null || movieId != null
+                        var menu by remember { mutableStateOf(false) }
                         PosterCard(
                             title = item.displayTitle,
                             posterPath = item.posterPath,
                             subtitle = item.year,
                             modifier = Modifier.width(130.dp),
                             corner = {
-                                if (!inLibrary) CornerButton(Icons.Filled.Add, "Aggiungi") { repo.add(item) }
+                                if (!inLibrary) Box {
+                                    CornerButton(Icons.Filled.Add, "Aggiungi") { menu = true }
+                                    AddMenu(menu, { menu = false }, item.mediaType == "movie") { repo.add(item, it) }
+                                }
                             },
                             onClick = {
                                 if (showId != null) onOpenShow(showId)
                                 else if (movieId != null) onOpenMovie(movieId)
-                                else repo.add(item)
+                                else menu = true
                             },
                         )
                     }

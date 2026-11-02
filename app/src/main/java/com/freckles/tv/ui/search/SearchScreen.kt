@@ -25,6 +25,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +41,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
 import com.freckles.tv.data.remote.posterUrl
+import com.freckles.tv.ui.common.AddMenu
 import com.freckles.tv.ui.common.LocalRepo
 
 @Composable
@@ -109,7 +113,11 @@ fun SearchScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit) {
                             if (inLibrary) {
                                 Icon(Icons.Filled.CheckCircle, "Già in libreria", tint = MaterialTheme.colorScheme.primary)
                             } else {
-                                IconButton(onClick = { repo.add(item) }) { Icon(Icons.Filled.Add, "Aggiungi") }
+                                var menu by remember { mutableStateOf(false) }
+                                Box {
+                                    IconButton(onClick = { menu = true }) { Icon(Icons.Filled.Add, "Aggiungi") }
+                                    AddMenu(menu, { menu = false }, item.mediaType == "movie") { repo.add(item, it) }
+                                }
                             }
                         }
                     }

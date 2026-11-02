@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.Icon
@@ -183,3 +184,20 @@ fun formatDuration(totalMinutes: Long): String {
     return parts.joinToString(" ")
 }
 
+
+/** Menu "aggiungi": da vedere oppure già visto. */
+@Composable
+fun AddMenu(expanded: Boolean, onDismiss: () -> Unit, isMovie: Boolean, onAdd: (watched: Boolean) -> Unit) {
+    androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        androidx.compose.material3.DropdownMenuItem(
+            text = { Text("Da vedere") },
+            leadingIcon = { Icon(Icons.Filled.Bookmark, null) },
+            onClick = { onDismiss(); onAdd(false) },
+        )
+        androidx.compose.material3.DropdownMenuItem(
+            text = { Text(if (isMovie) "Già visto" else "Già vista (episodi usciti)") },
+            leadingIcon = { Icon(Icons.Filled.Check, null) },
+            onClick = { onDismiss(); onAdd(true) },
+        )
+    }
+}

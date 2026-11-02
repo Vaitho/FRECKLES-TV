@@ -49,21 +49,26 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi) {
 
     // ---- aggiunta ----
 
-    fun add(item: SearchItem) {
-        if (item.mediaType == "tv") addShow(item.id) else addMovie(item.id)
+    /** `watched` = lo aggiungo come già visto (film visto / tutti gli episodi usciti visti). */
+    fun add(item: SearchItem, watched: Boolean = false) {
+        if (item.mediaType == "tv") addShow(item.id, watched) else addMovie(item.id, watched)
     }
 
-    fun addShow(tmdbId: Int) = launchReporting("Impossibile aggiungere la serie") {
+    fun addShow(tmdbId: Int, watched: Boolean = false) = launchReporting("Impossibile aggiungere la serie") {
         if (shows.byTmdbId(tmdbId) == null) {
-            addShowNow(tmdbId)
-            _messages.tryEmit("Serie aggiunta")
+            val id = addShowNow(tmdbId)
+            if (watched) episodes.markAiredWatched(id, LocalDate.now().toString(), System.currentTimeMillis())
+            _messages.tryEmit(if (watched) "Serie aggiunta come vista" else "Serie aggiunta")
         }
     }
 
-    fun addMovie(tmdbId: Int) = launchReporting("Impossibile aggiungere il film") {
+    fun addMovie(tmdbId: Int, watched: Boolean = false) = launchReporting("Impossibile aggiungere il film") {
         if (movies.byTmdbId(tmdbId) == null) {
-            addMovieNow(tmdbId)
-            _messages.tryEmit("Film aggiunto")
+            val id = addMovieNow(tmdbId)
+            if (watched) movies.byTmdbId(tmdbId)?.let {
+                movies.update(it.copy(watched = true, watchedAt = System.currentTimeMillis(), watchCount = 1))
+            }
+            _messages.tryEmit(if (watched) "Film aggiunto come visto" else "Film aggiunto")
         }
     }
 
