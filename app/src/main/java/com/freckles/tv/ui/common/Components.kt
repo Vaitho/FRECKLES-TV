@@ -1,5 +1,13 @@
 package com.freckles.tv.ui.common
 
+import com.freckles.tv.data.remote.profileUrl
+import com.freckles.tv.data.remote.CastMember
+import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.produceState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.animation.animateColorAsState
@@ -70,6 +78,9 @@ import com.freckles.tv.data.Repository
 import com.freckles.tv.data.remote.posterUrl
 
 val LocalRepo = staticCompositionLocalOf<Repository> { error("Repository non fornito") }
+
+/** Apre la pagina di un attore (id TMDB); fornito dalla navigazione. */
+val LocalOpenPerson = staticCompositionLocalOf<(Int) -> Unit> { {} }
 
 /** Pennellata animata per i segnaposto di caricamento. */
 @Composable
@@ -289,4 +300,52 @@ fun SolidProgress(progress: Float, modifier: Modifier = Modifier, trackColor: Co
         gapSize = 0.dp,
         drawStopIndicator = {},
     )
+}
+
+/** Riga orizzontale con gli attori; si nasconde da sola se non ci sono dati o manca la rete. */
+@Composable
+fun CastRow(type: String, tmdbId: Int, modifier: Modifier = Modifier, horizontalPadding: Dp = 20.dp) {
+    val repo = LocalRepo.current
+    val openPerson = LocalOpenPerson.current
+    val cast by produceState(emptyList<CastMember>(), type, tmdbId) {
+        value = runCatching { repo.cast(type, tmdbId) }.getOrDefault(emptyList())
+    }
+    if (cast.isEmpty()) return
+    Column(modifier) {
+        Text(
+            "Cast", Modifier.padding(horizontal = horizontalPadding),
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            items(cast, key = { it.id }) { a ->
+                Column(
+                    Modifier.width(80.dp).clip(RoundedCornerShape(12.dp)).clickable { openPerson(a.id) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    SubcomposeAsyncImage(
+                        model = profileUrl(a.profilePath), contentDescription = a.name, contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(72.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                        error = {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(a.name.take(1), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        },
+                    )
+                    Text(
+                        a.name, Modifier.padding(top = 6.dp), style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                    )
+                    a.character?.takeIf { it.isNotBlank() }?.let {
+                        Text(
+                            it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

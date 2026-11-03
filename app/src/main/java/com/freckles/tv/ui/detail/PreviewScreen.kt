@@ -1,5 +1,6 @@
 package com.freckles.tv.ui.detail
 
+import com.freckles.tv.ui.common.CastRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -115,6 +116,7 @@ fun PreviewScreen(
                         }
                     }
                     if (!d.overview.isNullOrBlank()) ExpandableText(d.overview)
+                    CastRow(type, tmdbId, horizontalPadding = 0.dp)
                     Spacer(Modifier.navigationBarsPadding().height(32.dp))
                 }
             }

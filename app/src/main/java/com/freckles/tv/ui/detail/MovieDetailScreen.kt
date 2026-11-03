@@ -1,5 +1,6 @@
 package com.freckles.tv.ui.detail
 
+import com.freckles.tv.ui.common.CastRow
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.foundation.layout.Box
@@ -76,6 +77,7 @@ fun MovieDetailScreen(id: Long, onBack: () -> Unit) {
             StarRating(m.rating, { repo.setMovieRating(m, it) })
             if (!m.overview.isNullOrBlank()) ExpandableText(m.overview)
         }
+        CastRow("movie", m.tmdbId, Modifier.padding(top = 12.dp))
         androidx.compose.foundation.layout.Spacer(Modifier.navigationBarsPadding().height(32.dp))
     }
 

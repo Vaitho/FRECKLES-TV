@@ -16,6 +16,7 @@ const val TMDB_IMG = "https://image.tmdb.org/t/p/"
 
 fun posterUrl(path: String?) = path?.let { "${TMDB_IMG}w342$it" }
 fun backdropUrl(path: String?) = path?.let { "${TMDB_IMG}w780$it" }
+fun profileUrl(path: String?) = path?.let { "${TMDB_IMG}w185$it" }
 
 @Serializable
 data class SearchResponse(val results: List<SearchItem> = emptyList())
@@ -97,6 +98,48 @@ data class MovieDetails(
 )
 
 @Serializable
+data class CastMember(
+    val id: Int = 0,
+    val name: String = "",
+    val character: String? = null,
+    @SerialName("profile_path") val profilePath: String? = null,
+)
+
+@Serializable
+data class Credits(val cast: List<CastMember> = emptyList())
+
+@Serializable
+data class PersonCredit(
+    val id: Int = 0,
+    @SerialName("media_type") val mediaType: String = "",
+    val title: String? = null,
+    val name: String? = null,
+    val character: String? = null,
+    @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("release_date") val releaseDate: String? = null,
+    @SerialName("first_air_date") val firstAirDate: String? = null,
+    @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
+) {
+    val displayTitle get() = title ?: name ?: ""
+    val date get() = (releaseDate ?: firstAirDate)?.ifBlank { null }
+}
+
+@Serializable
+data class PersonCredits(val cast: List<PersonCredit> = emptyList())
+
+@Serializable
+data class PersonDetails(
+    val id: Int = 0,
+    val name: String = "",
+    val biography: String? = null,
+    val birthday: String? = null,
+    val deathday: String? = null,
+    @SerialName("place_of_birth") val placeOfBirth: String? = null,
+    @SerialName("profile_path") val profilePath: String? = null,
+    @SerialName("combined_credits") val combinedCredits: PersonCredits = PersonCredits(),
+)
+
+@Serializable
 data class FindResponse(
     @SerialName("tv_results") val tvResults: List<SearchItem> = emptyList(),
     @SerialName("movie_results") val movieResults: List<SearchItem> = emptyList(),
@@ -117,6 +160,15 @@ interface TmdbApi {
 
     @GET("movie/{id}")
     suspend fun movie(@Path("id") id: Int): MovieDetails
+
+    @GET("tv/{id}/credits")
+    suspend fun tvCredits(@Path("id") id: Int): Credits
+
+    @GET("movie/{id}/credits")
+    suspend fun movieCredits(@Path("id") id: Int): Credits
+
+    @GET("person/{id}?append_to_response=combined_credits")
+    suspend fun person(@Path("id") id: Int): PersonDetails
 
     @GET("find/{externalId}")
     suspend fun find(

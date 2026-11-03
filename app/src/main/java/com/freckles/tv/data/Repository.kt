@@ -1,5 +1,6 @@
 package com.freckles.tv.data
 
+import com.freckles.tv.data.remote.CastMember
 import com.freckles.tv.data.db.AppDatabase
 import com.freckles.tv.data.importer.TvTimeImporter
 import com.freckles.tv.data.db.EpisodeEntity
@@ -83,6 +84,16 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
         return api.trending().results.filterTmdb().also { trendingCache = System.currentTimeMillis() to it }
     }
     private fun List<SearchItem>.filterTmdb() = filter { it.mediaType == "tv" || it.mediaType == "movie" }
+
+    private val castCache = HashMap<String, List<CastMember>>()
+
+    /** Attori principali (con foto per primi), caricati da TMDB al bisogno e tenuti in memoria. */
+    suspend fun cast(type: String, id: Int): List<CastMember> = castCache.getOrPut("$type:$id") {
+        val all = if (type == "tv") api.tvCredits(id).cast else api.movieCredits(id).cast
+        all.take(20)
+    }
+
+    suspend fun person(id: Int) = api.person(id)
 
     suspend fun preview(type: String, id: Int): PreviewInfo =
         if (type == "tv") {

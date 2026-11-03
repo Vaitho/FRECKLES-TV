@@ -1,5 +1,8 @@
 package com.freckles.tv.ui
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.freckles.tv.ui.common.LocalOpenPerson
+import com.freckles.tv.ui.detail.PersonScreen
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -134,54 +137,60 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
             // extId ("igdb:123") nel percorso: i due punti diventano "_" e tornano al loro posto nella destinazione
             val openGamePreview = { extId: String -> nav.navigate("gamepreview/${extId.replace(':', '_')}") }
             val openPreview = { type: String, id: Int -> nav.navigate("preview/$type/$id") }
-            NavHost(
-                nav,
-                startDestination = Tab.Home.route,
-                modifier = Modifier.padding(padding),
-                enterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f) },
-                exitTransition = { fadeOut(tween(120)) },
-                popEnterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f) },
-                popExitTransition = { fadeOut(tween(120)) },
-            ) {
-                composable(Tab.Home.route) { HomeScreen(profile, openShow, openMovie, openPreview, openGame) }
-                composable(Tab.Search.route) { SearchScreen(openShow, openMovie, openPreview, openGame, openGamePreview) }
-                composable(Tab.Library.route) {
-                    LibraryScreen(openShow, openMovie, openGame) {
-                        nav.navigate(Tab.Search.route) {
-                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                }
-                composable(Tab.Stats.route) { StatsScreen(openShow) }
-                composable("settings") { SettingsScreen { nav.popBackStack() } }
-                composable("profile") { ProfileScreen(profile, prefs, { nav.popBackStack() }, openShow, openMovie, openGame) }
-                composable("show/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
-                    ShowDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
-                }
-                composable(
-                    "preview/{type}/{id}",
-                    listOf(navArgument("type") { type = NavType.StringType }, navArgument("id") { type = NavType.IntType }),
+            // Le righe del cast aprono la pagina dell’attore da qualunque schermata di dettaglio.
+            CompositionLocalProvider(LocalOpenPerson provides { id: Int -> nav.navigate("person/$id") }) {
+                NavHost(
+                    nav,
+                    startDestination = Tab.Home.route,
+                    modifier = Modifier.padding(padding),
+                    enterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f) },
+                    exitTransition = { fadeOut(tween(120)) },
+                    popEnterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f) },
+                    popExitTransition = { fadeOut(tween(120)) },
                 ) {
-                    val type = it.arguments!!.getString("type")!!
-                    val id = it.arguments!!.getInt("id")
-                    PreviewScreen(type, id, { nav.popBackStack() }) { isShow, libId ->
-                        nav.navigate(if (isShow) "show/$libId" else "movie/$libId") {
-                            popUpTo("preview/{type}/{id}") { inclusive = true }
+                    composable(Tab.Home.route) { HomeScreen(profile, openShow, openMovie, openPreview, openGame) }
+                    composable(Tab.Search.route) { SearchScreen(openShow, openMovie, openPreview, openGame, openGamePreview) }
+                    composable(Tab.Library.route) {
+                        LibraryScreen(openShow, openMovie, openGame) {
+                            nav.navigate(Tab.Search.route) {
+                                popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     }
-                }
-                composable("gamepreview/{extId}", listOf(navArgument("extId") { type = NavType.StringType })) {
-                    GamePreviewScreen(it.arguments!!.getString("extId")!!.replaceFirst('_', ':'), { nav.popBackStack() }) { libId ->
-                        nav.navigate("game/$libId") { popUpTo("gamepreview/{extId}") { inclusive = true } }
+                    composable(Tab.Stats.route) { StatsScreen(openShow) }
+                    composable("settings") { SettingsScreen { nav.popBackStack() } }
+                    composable("profile") { ProfileScreen(profile, prefs, { nav.popBackStack() }, openShow, openMovie, openGame) }
+                    composable("person/{id}", listOf(navArgument("id") { type = NavType.IntType })) {
+                        PersonScreen(it.arguments!!.getInt("id"), { nav.popBackStack() }, openShow, openMovie, openPreview)
                     }
-                }
-                composable("game/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
-                    GameDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
-                }
-                composable("movie/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
-                    MovieDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
+                    composable("show/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
+                        ShowDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
+                    }
+                    composable(
+                        "preview/{type}/{id}",
+                        listOf(navArgument("type") { type = NavType.StringType }, navArgument("id") { type = NavType.IntType }),
+                    ) {
+                        val type = it.arguments!!.getString("type")!!
+                        val id = it.arguments!!.getInt("id")
+                        PreviewScreen(type, id, { nav.popBackStack() }) { isShow, libId ->
+                            nav.navigate(if (isShow) "show/$libId" else "movie/$libId") {
+                                popUpTo("preview/{type}/{id}") { inclusive = true }
+                            }
+                        }
+                    }
+                    composable("gamepreview/{extId}", listOf(navArgument("extId") { type = NavType.StringType })) {
+                        GamePreviewScreen(it.arguments!!.getString("extId")!!.replaceFirst('_', ':'), { nav.popBackStack() }) { libId ->
+                            nav.navigate("game/$libId") { popUpTo("gamepreview/{extId}") { inclusive = true } }
+                        }
+                    }
+                    composable("game/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
+                        GameDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
+                    }
+                    composable("movie/{id}", listOf(navArgument("id") { type = NavType.LongType })) {
+                        MovieDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
+                    }
                 }
             }
         }

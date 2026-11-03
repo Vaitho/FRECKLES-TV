@@ -1,5 +1,6 @@
 package com.freckles.tv.ui.detail
 
+import com.freckles.tv.ui.common.CastRow
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.freckles.tv.ui.common.SolidProgress
@@ -126,6 +127,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
             }
         }
+        item(key = "cast") { CastRow("tv", s.tmdbId, Modifier.padding(top = 8.dp, bottom = 4.dp)) }
         if (current != null) {
             val list = bySeason.getValue(current)
             val seasonWatched = list.count { it.watched }
