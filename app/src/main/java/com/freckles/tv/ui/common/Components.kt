@@ -1,5 +1,7 @@
 package com.freckles.tv.ui.common
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.AnimatedVisibility
@@ -109,30 +111,37 @@ fun PosterCard(
             modifier = Modifier.fillMaxSize(),
             loading = { Box(Modifier.fillMaxSize().background(shimmerBrush())) },
             error = {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Movie, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Senza copertina: sfondo a colori del tema e titolo grande al posto del riquadro grigio.
+                Box(
+                    Modifier.fillMaxSize().background(
+                        Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.secondaryContainer))
+                    ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        title.trim().take(1).uppercase(), Modifier.padding(bottom = 36.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.55f), fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.displayLarge,
+                    )
                 }
             },
         )
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xDD000000)), startY = 220f))
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xDD000000)), startY = 120f))
         )
         Column(Modifier.align(Alignment.BottomStart).padding(10.dp)) {
             Text(
                 title, color = Color.White, fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium.copy(shadow = Shadow(Color(0xCC000000), Offset(0f, 2f), 6f)),
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
             )
             if (subtitle != null) {
                 Text(subtitle, color = Color(0xCCFFFFFF), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (progress != null) {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
-                    trackColor = Color(0x44FFFFFF),
-                )
+                SolidProgress(progress, Modifier.fillMaxWidth().padding(top = 6.dp).height(4.dp), trackColor = Color(0x44FFFFFF))
             }
         }
         Box(Modifier.align(Alignment.TopEnd).padding(8.dp)) { corner() }
@@ -268,4 +277,16 @@ fun InfoChips(items: List<String>, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/** Barra di avanzamento piena, senza lo stacco e il puntino finale di Material 3. */
+@Composable
+fun SolidProgress(progress: Float, modifier: Modifier = Modifier, trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+    LinearProgressIndicator(
+        progress = { progress },
+        modifier = modifier.clip(RoundedCornerShape(50)),
+        trackColor = trackColor,
+        gapSize = 0.dp,
+        drawStopIndicator = {},
+    )
 }

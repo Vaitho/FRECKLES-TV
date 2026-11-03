@@ -62,13 +62,18 @@ fun StatsScreen(onOpenShow: (Long) -> Unit) {
     val movieList by repo.allMovies.collectAsStateWithLifecycle(emptyList())
     val games by repo.allGames.collectAsStateWithLifecycle(emptyList())
 
-    val showById = shows.associateBy { it.id }
-    val topShows = byShow.mapNotNull { m -> showById[m.showId]?.let { it to m.minutes } }.take(5)
-    val genres = genreTotals(
-        byShow.mapNotNull { m -> showById[m.showId]?.let { it.genres to m.minutes } } +
-            movieList.filter { it.watchCount > 0 }.map { it.genres to (it.runtime.toLong() * it.watchCount) } +
-            games.map { it.genres to it.minutesPlayed.toLong() }
-    )
+    val topShows = remember(shows, byShow) {
+        val showById = shows.associateBy { it.id }
+        byShow.mapNotNull { m -> showById[m.showId]?.let { it to m.minutes } }.take(5)
+    }
+    val genres = remember(shows, byShow, movieList, games) {
+        val showById = shows.associateBy { it.id }
+        genreTotals(
+            byShow.mapNotNull { m -> showById[m.showId]?.let { it.genres to m.minutes } } +
+                movieList.filter { it.watchCount > 0 }.map { it.genres to (it.runtime.toLong() * it.watchCount) } +
+                games.map { it.genres to it.minutesPlayed.toLong() }
+        )
+    }
 
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
@@ -98,8 +103,8 @@ fun StatsScreen(onOpenShow: (Long) -> Unit) {
         TypeSplit(
             listOf(
                 Triple("Serie", byShow.sumOf { it.minutes }, MaterialTheme.colorScheme.primary),
-                Triple("Film", movieList.sumOf { it.runtime.toLong() * it.watchCount }, MaterialTheme.colorScheme.secondary),
-                Triple("Giochi", games.sumOf { it.minutesPlayed.toLong() }, MaterialTheme.colorScheme.tertiary),
+                Triple("Film", movieList.sumOf { it.runtime.toLong() * it.watchCount }, Color(0xFFFFA726)),
+                Triple("Giochi", games.sumOf { it.minutesPlayed.toLong() }, Color(0xFF26C6DA)),
             )
         )
 
@@ -166,11 +171,11 @@ fun StatsScreen(onOpenShow: (Long) -> Unit) {
             )
         }
 
-        SectionTitle("Ultimi mesi (ore di serie TV)")
+        SectionTitle("Ultimi mesi (ore di serie e film)")
         if (monthly.isEmpty()) {
             Text("Nessun dato con data di visione.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            BarChart(monthly.reversed().map { it.month.takeLast(2) to it.minutes })
+            BarChart(monthly.reversed().map { monthLabel(it.month) to it.minutes })
         }
         Spacer(Modifier.height(16.dp))
     }
@@ -210,6 +215,11 @@ private fun TypeSplit(parts: List<Triple<String, Long, Color>>) {
         }
     }
 }
+
+private val monthNames = listOf("gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic")
+
+/** "2026-07" -> "lug". */
+private fun monthLabel(month: String) = monthNames.getOrNull((month.takeLast(2).toIntOrNull() ?: 0) - 1) ?: month.takeLast(2)
 
 @Composable
 private fun SectionTitle(text: String) {

@@ -1,5 +1,9 @@
 package com.freckles.tv.ui.detail
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.freckles.tv.ui.common.SolidProgress
+import androidx.compose.foundation.combinedClickable
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -61,6 +65,7 @@ import com.freckles.tv.ui.common.InfoChips
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.StarRating
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
     val repo = LocalRepo.current
@@ -75,7 +80,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
     }
 
     val s = show ?: run { Box(Modifier.fillMaxSize()); return }
-    val bySeason = episodes.groupBy { it.season }.toSortedMap()
+    val bySeason = remember(episodes) { episodes.groupBy { it.season }.toSortedMap() }
     val today = remember { java.time.LocalDate.now().toString() }
     // Contano solo gli episodi già usciti (o già visti): quelli annunciati non abbassano l'avanzamento.
     val counted = episodes.filter { !it.isSpecial && (it.watched || (it.airDate != null && it.airDate <= today)) }
@@ -112,10 +117,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
                     Modifier.padding(bottom = 4.dp),
                 )
                 Text("$watched / ${counted.size} episodi visti", fontWeight = FontWeight.SemiBold)
-                LinearProgressIndicator(
-                    progress = { if (counted.isEmpty()) 0f else watched.toFloat() / counted.size },
-                    modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-                )
+                SolidProgress(if (counted.isEmpty()) 0f else watched.toFloat() / counted.size, Modifier.fillMaxWidth().height(8.dp))
                 Text("Il tuo voto", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp))
                 StarRating(s.rating, { repo.setShowRating(s, it) })
                 if (!s.overview.isNullOrBlank()) {
@@ -128,7 +130,9 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
             val list = bySeason.getValue(current)
             val seasonWatched = list.count { it.watched }
             item(key = "seasonChips") {
-                LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val chipState = rememberLazyListState()
+                LaunchedEffect(current) { chipState.animateScrollToItem(bySeason.keys.indexOf(current).coerceAtLeast(0)) }
+                LazyRow(state = chipState, contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(bySeason.keys.toList(), key = { it }) { season ->
                         FilterChip(
                             selected = season == current,
@@ -142,10 +146,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
                 Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("$seasonWatched / ${list.size} episodi", style = MaterialTheme.typography.titleMedium)
-                        LinearProgressIndicator(
-                            progress = { if (list.isEmpty()) 0f else seasonWatched.toFloat() / list.size },
-                            modifier = Modifier.padding(top = 6.dp).fillMaxWidth(0.6f).height(4.dp).clip(RoundedCornerShape(2.dp)),
-                        )
+                        SolidProgress(if (list.isEmpty()) 0f else seasonWatched.toFloat() / list.size, Modifier.padding(top = 6.dp).fillMaxWidth(0.6f).height(4.dp))
                     }
                     if (current != 0) {
                         IconButton(onClick = {
@@ -163,7 +164,10 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
             items(list, key = { it.id }) { ep ->
                 Row(
                     Modifier.fillMaxWidth()
-                        .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleEpisode(ep) }
+                        .combinedClickable(
+                            onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.markUpTo(ep) },
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleEpisode(ep) },
+                        )
                         .padding(start = 12.dp, end = 20.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

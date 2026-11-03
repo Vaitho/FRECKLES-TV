@@ -35,7 +35,7 @@ interface ShowDao {
 
     /** Episodi non special visti / totali per ogni serie. */
     @Query(
-        """SELECT showId, SUM(watched) AS watched, COUNT(*) AS total, MIN(airDate) AS firstAir
+        """SELECT showId, SUM(watched) AS watched, COUNT(*) AS total, MIN(airDate) AS firstAir, MAX(watchedAt) AS lastWatched
            FROM episodes WHERE isSpecial = 0 AND (watched = 1 OR (airDate IS NOT NULL AND airDate <= date('now', 'localtime')))
            GROUP BY showId"""
     )
@@ -62,10 +62,15 @@ interface EpisodeDao {
     )
     fun observeNext(): Flow<List<EpisodeEntity>>
 
+    /** Ore per mese (ora locale) di episodi e film visti, rivisioni incluse. */
     @Query(
-        """SELECT strftime('%Y-%m', watchedAt / 1000, 'unixepoch') AS month, SUM(runtime) AS minutes
-           FROM episodes WHERE watched = 1 AND isSpecial = 0 AND watchedAt IS NOT NULL
-           GROUP BY month ORDER BY month DESC LIMIT 12"""
+        """SELECT month, SUM(minutes) AS minutes FROM (
+               SELECT strftime('%Y-%m', watchedAt / 1000, 'unixepoch', 'localtime') AS month, runtime * watchCount AS minutes
+               FROM episodes WHERE watchCount > 0 AND isSpecial = 0 AND watchedAt IS NOT NULL
+               UNION ALL
+               SELECT strftime('%Y-%m', watchedAt / 1000, 'unixepoch', 'localtime'), runtime * watchCount
+               FROM movies WHERE watchCount > 0 AND watchedAt IS NOT NULL
+           ) GROUP BY month ORDER BY month DESC LIMIT 12"""
     )
     fun observeMonthly(): Flow<List<MonthStat>>
 
@@ -83,7 +88,7 @@ interface EpisodeDao {
     fun observeMinutesByShow(): Flow<List<ShowMinutes>>
 
     @Query(
-        """SELECT strftime('%Y', watchedAt / 1000, 'unixepoch') AS year, SUM(runtime * MAX(watchCount, 1)) AS minutes
+        """SELECT strftime('%Y', watchedAt / 1000, 'unixepoch', 'localtime') AS year, SUM(runtime * MAX(watchCount, 1)) AS minutes
            FROM episodes WHERE watched = 1 AND isSpecial = 0 AND watchedAt IS NOT NULL GROUP BY year ORDER BY year"""
     )
     fun observeYearly(): Flow<List<YearStat>>
@@ -114,6 +119,26 @@ interface EpisodeDao {
            WHERE showId = :showId AND isSpecial = 0 AND watched = 0 AND airDate IS NOT NULL AND airDate <= :today"""
     )
     suspend fun markAiredWatched(showId: Long, today: String, now: Long)
+
+    /** "Segna fino a qui": tutti gli episodi non visti fino a (season, number) compreso, special esclusi. */
+    @Query(
+        """UPDATE episodes SET watched = 1, watchedAt = :now, watchCount = MAX(watchCount, 1)
+           WHERE showId = :showId AND isSpecial = 0 AND watched = 0 AND season > 0
+           AND (season < :season OR (season = :season AND number <= :number))"""
+    )
+    suspend fun markUpTo(showId: Long, season: Int, number: Int, now: Long)
+
+    /** Prossimo episodio in uscita per ogni serie seguita (iniziata o con campanella). */
+    @Query(
+        """SELECT * FROM episodes e
+           WHERE e.isSpecial = 0 AND e.airDate > date('now', 'localtime')
+           AND ((SELECT notifyEnabled FROM shows s WHERE s.id = e.showId) = 1
+                OR EXISTS (SELECT 1 FROM episodes w WHERE w.showId = e.showId AND w.watched = 1 AND w.isSpecial = 0))
+           AND NOT EXISTS (SELECT 1 FROM episodes p WHERE p.showId = e.showId AND p.isSpecial = 0 AND p.airDate > date('now', 'localtime')
+               AND (p.airDate < e.airDate OR (p.airDate = e.airDate AND p.season * 1000 + p.number < e.season * 1000 + e.number)))
+           ORDER BY e.airDate LIMIT 10"""
+    )
+    fun observeUpcoming(): Flow<List<EpisodeEntity>>
 
     /** Minuti totali visti (rewatch inclusi), esclusi gli special. */
     @Query("SELECT COALESCE(SUM(runtime * watchCount), 0) FROM episodes WHERE isSpecial = 0 AND watchCount > 0")
@@ -147,7 +172,7 @@ interface MovieDao {
     suspend fun delete(id: Long)
 
     @Query(
-        """SELECT strftime('%Y', watchedAt / 1000, 'unixepoch') AS year, SUM(runtime * MAX(watchCount, 1)) AS minutes
+        """SELECT strftime('%Y', watchedAt / 1000, 'unixepoch', 'localtime') AS year, SUM(runtime * MAX(watchCount, 1)) AS minutes
            FROM movies WHERE watched = 1 AND watchedAt IS NOT NULL GROUP BY year ORDER BY year"""
     )
     fun observeYearly(): Flow<List<YearStat>>

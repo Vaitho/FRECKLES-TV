@@ -1,5 +1,7 @@
 package com.freckles.tv.ui.detail
 
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,6 +65,12 @@ fun MovieDetailScreen(id: Long, onBack: () -> Unit) {
             Button(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleMovieWatched(m) }, Modifier.fillMaxWidth()) {
                 if (m.watched) Icon(Icons.Filled.Check, null)
                 Text(if (m.watched) "Visto – tocca per annullare" else "Segna come visto")
+            }
+            if (m.watched) {
+                OutlinedButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.addMovieRewatch(m) }, Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Replay, null)
+                    Text("  Rivisto ancora (+1) · ${m.watchCount} ${if (m.watchCount == 1) "visione" else "visioni"}")
+                }
             }
             Text("Il tuo voto", style = MaterialTheme.typography.titleSmall)
             StarRating(m.rating, { repo.setMovieRating(m, it) })

@@ -61,6 +61,7 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
     fun observeEpisodes(showId: Long) = episodes.observeForShow(showId)
     fun observeNext() = episodes.observeNext()
     val monthly = episodes.observeMonthly()
+    val upcoming = episodes.observeUpcoming()
     val minutesByShow = episodes.observeMinutesByShow()
     val yearly = combine(episodes.observeYearly(), movies.observeYearly()) { a, b ->
         (a + b).groupBy { it.year }.map { (y, l) -> com.freckles.tv.data.db.YearStat(y, l.sumOf { it.minutes }) }.sortedBy { it.year }
@@ -307,6 +308,16 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
             if (e.watched) e.copy(watched = false, watchedAt = null, watchCount = 0)
             else e.copy(watched = true, watchedAt = System.currentTimeMillis(), watchCount = maxOf(1, e.watchCount))
         )
+    }
+
+    fun markUpTo(e: EpisodeEntity) = launchReporting("Errore") {
+        episodes.markUpTo(e.showId, e.season, e.number, System.currentTimeMillis())
+        say("Segnati come visti gli episodi fino a S${e.season}E${e.number}")
+    }
+
+    /** Rivisione di un film già visto: +1 al conteggio (e alle ore). */
+    fun addMovieRewatch(m: MovieEntity) = launchReporting("Errore") {
+        movies.update(m.copy(watched = true, watchedAt = m.watchedAt ?: System.currentTimeMillis(), watchCount = maxOf(1, m.watchCount) + 1))
     }
 
     fun setSeasonWatched(showId: Long, season: Int, watched: Boolean) = launchReporting("Errore") {

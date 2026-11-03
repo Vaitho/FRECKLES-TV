@@ -1,5 +1,9 @@
 package com.freckles.tv.ui.library
 
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material.icons.filled.VideoLibrary
@@ -57,7 +61,18 @@ import com.freckles.tv.util.formatHours
 private val showFilters = listOf("Tutte", "In corso", "Da iniziare", "Completate", "Preferite", "Votate")
 private val movieFilters = listOf("Tutti", "Da vedere", "Visti", "Preferiti", "Votati")
 private val gameFilters = listOf("Tutti", "Da giocare", "In corso", "Finiti", "Abbandonati", "Preferiti", "Votati")
-private val sorts = listOf("Aggiunta", "Titolo", "Uscita", "Voto")
+private val sorts = listOf("Aggiunta", "Titolo", "Uscita", "Voto", "Ultima visione")
+
+/** Titolo A-Z; date e visioni più recenti prima; i valori assenti sempre in fondo. */
+private fun <T> List<T>.sortedFor(
+    sort: Int, title: (T) -> String, added: (T) -> Long, released: (T) -> String?, rating: (T) -> Int, seen: (T) -> Long?,
+): List<T> = when (sort) {
+    1 -> sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, title))
+    2 -> sortedWith(compareBy<T> { released(it) == null }.thenByDescending { released(it) })
+    3 -> sortedByDescending(rating)
+    4 -> sortedWith(compareBy<T> { seen(it) == null }.thenByDescending { seen(it) })
+    else -> sortedByDescending(added)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,12 +82,13 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
     val movies by repo.allMovies.collectAsStateWithLifecycle(emptyList())
     val games by repo.allGames.collectAsStateWithLifecycle(emptyList())
     val progress by repo.progress.collectAsStateWithLifecycle(emptyList())
-    val progressById = progress.associateBy { it.showId }
+    val progressById = remember(progress) { progress.associateBy { it.showId } }
 
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var filter by rememberSaveable { mutableIntStateOf(0) }
     var sort by rememberSaveable { mutableIntStateOf(0) }
     var sortMenu by remember { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
     val filters = when (tab) {
         0 -> showFilters
         1 -> movieFilters
@@ -97,6 +113,14 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                 Tab(selected = tab == 1, onClick = { tab = 1; filter = 0 }, text = { Text("Film (${movies.size})") })
                 Tab(selected = tab == 2, onClick = { tab = 2; filter = 0 }, text = { Text("Giochi (${games.size})") })
             }
+            OutlinedTextField(
+                value = query, onValueChange = { query = it }, singleLine = true,
+                placeholder = { Text("Cerca nella libreria") },
+                leadingIcon = { Icon(Icons.Filled.Search, null) },
+                trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, "Cancella") } },
+                shape = CircleShape,
+                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp),
+            )
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -106,54 +130,53 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                 }
             }
 
-            // Ordini che si invertono: titolo A-Z; le date più recenti prima; assenti sempre in fondo.
-            fun <T> List<T>.sorted(title: (T) -> String, added: (T) -> Long, released: (T) -> String?, rating: (T) -> Int): List<T> = when (sort) {
-                1 -> sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, title))
-                2 -> sortedWith(compareBy<T> { released(it) == null }.thenByDescending { released(it) })
-                3 -> sortedByDescending(rating)
-                else -> sortedByDescending(added)
+            val q = query.trim()
+            val shownShows = remember(shows, progressById, filter, sort, q) {
+                shows.filter { s ->
+                    val p = progressById[s.id]
+                    val w = p?.watched ?: 0
+                    val t = p?.total ?: 0
+                    s.title.contains(q, ignoreCase = true) && when (filter) {
+                        1 -> w in 1 until t
+                        2 -> w == 0
+                        3 -> t > 0 && w >= t
+                        4 -> s.isFavorite
+                        5 -> s.rating > 0
+                        else -> true
+                    }
+                }.sortedFor(sort, { it.title }, { it.addedAt }, { progressById[it.id]?.firstAir }, { it.rating }, { progressById[it.id]?.lastWatched })
             }
-
-            val shownShows = shows.filter { s ->
-                val p = progressById[s.id]
-                val w = p?.watched ?: 0
-                val t = p?.total ?: 0
-                when (filter) {
-                    1 -> w in 1 until t
-                    2 -> w == 0
-                    3 -> t > 0 && w >= t
-                    4 -> s.isFavorite
-                    5 -> s.rating > 0
-                    else -> true
-                }
-            }.sorted({ it.title }, { it.addedAt }, { progressById[it.id]?.firstAir }, { it.rating })
-            val shownMovies = movies.filter { m ->
-                when (filter) {
-                    1 -> !m.watched
-                    2 -> m.watched
-                    3 -> m.isFavorite
-                    4 -> m.rating > 0
-                    else -> true
-                }
-            }.sorted({ it.title }, { it.addedAt }, { it.releaseDate?.ifBlank { null } }, { it.rating })
-            val shownGames = games.filter { g ->
-                when (filter) {
-                    1 -> g.status == GameStatus.BACKLOG
-                    2 -> g.status == GameStatus.PLAYING
-                    3 -> g.status == GameStatus.FINISHED
-                    4 -> g.status == GameStatus.DROPPED
-                    5 -> g.isFavorite
-                    6 -> g.rating > 0
-                    else -> true
-                }
-            }.sorted({ it.title }, { it.addedAt }, { it.released?.ifBlank { null } }, { it.rating })
+            val shownMovies = remember(movies, filter, sort, q) {
+                movies.filter { m ->
+                    m.title.contains(q, ignoreCase = true) && when (filter) {
+                        1 -> !m.watched
+                        2 -> m.watched
+                        3 -> m.isFavorite
+                        4 -> m.rating > 0
+                        else -> true
+                    }
+                }.sortedFor(sort, { it.title }, { it.addedAt }, { it.releaseDate?.ifBlank { null } }, { it.rating }, { it.watchedAt })
+            }
+            val shownGames = remember(games, filter, sort, q) {
+                games.filter { g ->
+                    g.title.contains(q, ignoreCase = true) && when (filter) {
+                        1 -> g.status == GameStatus.BACKLOG
+                        2 -> g.status == GameStatus.PLAYING
+                        3 -> g.status == GameStatus.FINISHED
+                        4 -> g.status == GameStatus.DROPPED
+                        5 -> g.isFavorite
+                        6 -> g.rating > 0
+                        else -> true
+                    }
+                }.sortedFor(sort, { it.title }, { it.addedAt }, { it.released?.ifBlank { null } }, { it.rating }, { it.finishedAt })
+            }
 
             if ((tab == 0 && shownShows.isEmpty()) || (tab == 1 && shownMovies.isEmpty()) || (tab == 2 && shownGames.isEmpty())) {
                 Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(Icons.Filled.VideoLibrary, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.outline)
                     Text("Niente da mostrare qui", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Cambia filtro oppure cerca qualcosa da aggiungere.",
+                        if (q.isNotEmpty()) "Nessun risultato per \"$q\"." else "Cambia filtro oppure cerca qualcosa da aggiungere.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
                     )
                     FilledTonalButton(onClick = onSearch) { Text("Cerca titoli") }

@@ -1,5 +1,11 @@
 package com.freckles.tv.ui.home
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -49,8 +55,10 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
     val trending by produceState<List<SearchItem>>(emptyList()) {
         value = runCatching { repo.trending() }.getOrDefault(emptyList())
     }
+    val upcoming by repo.upcoming.collectAsStateWithLifecycle(emptyList())
     val pending by repo.pending.collectAsStateWithLifecycle()
     val showById = shows.associateBy { it.id }
+    val thisYear = remember { java.time.LocalDate.now().year }
     val hour = LocalTime.now().hour
     val greeting = when {
         hour < 6 -> "Buonanotte"
@@ -68,6 +76,37 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
                 },
                 Modifier.padding(horizontal = 20.dp), style = MaterialTheme.typography.headlineSmall,
             )
+        }
+        if (upcoming.isNotEmpty()) item {
+            Section("In uscita") {
+                Surface(
+                    Modifier.padding(horizontal = 20.dp), shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                ) {
+                    Column(Modifier.padding(vertical = 6.dp)) {
+                        upcoming.forEach { ep ->
+                            val show = showById[ep.showId] ?: return@forEach
+                            Row(
+                                Modifier.fillMaxWidth().clickable { onOpenShow(show.id) }.padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.width(64.dp)) {
+                                    Text(airDay(ep.airDate), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Text(airMonth(ep.airDate, thisYear), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text(show.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
+                                    Text(
+                                        "S${ep.season}E${ep.number}" + (ep.name?.let { " · $it" } ?: ""),
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         item {
             Section("Continua a guardare") {
@@ -179,4 +218,14 @@ private fun Section(title: String, content: @Composable () -> Unit) {
         Spacer(Modifier.height(12.dp))
         content()
     }
+}
+
+private val shortMonths = listOf("gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic")
+
+/** "2026-11-14" -> "14", "nov". */
+private fun airDay(date: String?) = date?.takeLast(2)?.trimStart('0').orEmpty()
+private fun airMonth(date: String?, thisYear: Int): String {
+    val month = date?.substring(5, 7)?.toIntOrNull()?.let { shortMonths.getOrNull(it - 1) }.orEmpty()
+    val year = date?.take(4)?.toIntOrNull()
+    return if (year != null && year != thisYear) "$month $year" else month
 }
