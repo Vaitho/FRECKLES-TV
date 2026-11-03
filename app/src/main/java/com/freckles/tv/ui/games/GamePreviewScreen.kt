@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.db.GameStatus
 import com.freckles.tv.data.remote.GameInfo
+import com.freckles.tv.ui.common.ExpandableText
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.detail.DetailHeader
 
@@ -98,7 +99,7 @@ fun GamePreviewScreen(extId: String, onBack: () -> Unit, onAdded: (Long) -> Unit
                         Text("Piattaforme", style = MaterialTheme.typography.titleSmall)
                         Text(d.platforms, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if (!d.overview.isNullOrBlank()) Text(d.overview)
+                    if (!d.overview.isNullOrBlank()) ExpandableText(d.overview)
                     Spacer(Modifier.navigationBarsPadding().height(32.dp))
                 }
             }

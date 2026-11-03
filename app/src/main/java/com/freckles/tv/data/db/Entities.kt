@@ -75,6 +75,8 @@ data class ShowProgress(
     val showId: Long,
     val watched: Int,
     val total: Int,
+    /** Data del primo episodio: serve a ordinare per uscita (le serie non hanno una data propria). */
+    val firstAir: String? = null,
 )
 
 data class MonthStat(val month: String, val minutes: Long)

@@ -1,5 +1,15 @@
 package com.freckles.tv.ui.stats
 
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.Canvas
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -85,6 +95,13 @@ fun StatsScreen(onOpenShow: (Long) -> Unit) {
             StatCard("Film", movies.toString(), Modifier.weight(1f))
             StatCard("Giochi finiti", gamesDone.toString(), Modifier.weight(1f))
         }
+        TypeSplit(
+            listOf(
+                Triple("Serie", byShow.sumOf { it.minutes }, MaterialTheme.colorScheme.primary),
+                Triple("Film", movieList.sumOf { it.runtime.toLong() * it.watchCount }, MaterialTheme.colorScheme.secondary),
+                Triple("Giochi", games.sumOf { it.minutesPlayed.toLong() }, MaterialTheme.colorScheme.tertiary),
+            )
+        )
 
         if (topShows.isNotEmpty()) {
             SectionTitle("Serie più viste")
@@ -156,6 +173,41 @@ fun StatsScreen(onOpenShow: (Long) -> Unit) {
             BarChart(monthly.reversed().map { it.month.takeLast(2) to it.minutes })
         }
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+/** Anello con la ripartizione delle ore tra serie, film e giochi; `parts` = (nome, minuti, colore). */
+@Composable
+private fun TypeSplit(parts: List<Triple<String, Long, Color>>) {
+    val total = parts.sumOf { it.second }
+    if (total <= 0) return
+    var go by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { go = true }
+    val t by animateFloatAsState(if (go) 1f else 0f, tween(800), label = "donut")
+    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            Canvas(Modifier.size(112.dp)) {
+                val stroke = 20.dp.toPx()
+                var start = -90f
+                parts.forEach { (_, v, c) ->
+                    val sweep = 360f * v / total * t
+                    drawArc(
+                        c, start, sweep, false, topLeft = Offset(stroke / 2, stroke / 2),
+                        size = Size(size.width - stroke, size.height - stroke), style = Stroke(stroke),
+                    )
+                    start += sweep
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                parts.forEach { (name, v, c) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(10.dp).clip(CircleShape).background(c))
+                        Text(name, Modifier.padding(start = 8.dp).width(60.dp), style = MaterialTheme.typography.bodyMedium)
+                        Text("${v / 60} h · ${100 * v / total}%", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -35,7 +35,7 @@ interface ShowDao {
 
     /** Episodi non special visti / totali per ogni serie. */
     @Query(
-        """SELECT showId, SUM(watched) AS watched, COUNT(*) AS total
+        """SELECT showId, SUM(watched) AS watched, COUNT(*) AS total, MIN(airDate) AS firstAir
            FROM episodes WHERE isSpecial = 0 AND (watched = 1 OR (airDate IS NOT NULL AND airDate <= date('now', 'localtime')))
            GROUP BY showId"""
     )

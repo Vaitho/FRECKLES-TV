@@ -30,6 +30,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.remote.backdropUrl
+import com.freckles.tv.ui.common.ExpandableText
+import com.freckles.tv.ui.common.InfoChips
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.StarRating
 
@@ -54,9 +56,9 @@ fun MovieDetailScreen(id: Long, onBack: () -> Unit) {
             onDelete = { confirmDelete = true },
         )
         Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                listOfNotNull(m.releaseDate?.take(4), "${m.runtime} min").joinToString(" · "),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            InfoChips(
+                listOfNotNull(m.releaseDate?.take(4), "${m.runtime} min") +
+                    m.genres.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }.take(3),
             )
             Button(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleMovieWatched(m) }, Modifier.fillMaxWidth()) {
                 if (m.watched) Icon(Icons.Filled.Check, null)
@@ -64,7 +66,7 @@ fun MovieDetailScreen(id: Long, onBack: () -> Unit) {
             }
             Text("Il tuo voto", style = MaterialTheme.typography.titleSmall)
             StarRating(m.rating, { repo.setMovieRating(m, it) })
-            if (!m.overview.isNullOrBlank()) Text(m.overview)
+            if (!m.overview.isNullOrBlank()) ExpandableText(m.overview)
         }
         androidx.compose.foundation.layout.Spacer(Modifier.navigationBarsPadding().height(32.dp))
     }

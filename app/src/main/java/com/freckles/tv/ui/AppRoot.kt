@@ -145,7 +145,15 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
             ) {
                 composable(Tab.Home.route) { HomeScreen(profile, openShow, openMovie, openPreview, openGame) }
                 composable(Tab.Search.route) { SearchScreen(openShow, openMovie, openPreview, openGame, openGamePreview) }
-                composable(Tab.Library.route) { LibraryScreen(openShow, openMovie, openGame) }
+                composable(Tab.Library.route) {
+                    LibraryScreen(openShow, openMovie, openGame) {
+                        nav.navigate(Tab.Search.route) {
+                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
                 composable(Tab.Stats.route) { StatsScreen(openShow) }
                 composable("settings") { SettingsScreen { nav.popBackStack() } }
                 composable("profile") { ProfileScreen(profile, prefs, { nav.popBackStack() }, openShow, openMovie, openGame) }

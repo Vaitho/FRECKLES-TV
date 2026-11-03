@@ -1,5 +1,8 @@
 package com.freckles.tv.ui.home
 
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,12 +59,15 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
         else -> "Buonasera"
     }
 
-    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
         item {
-            Column(Modifier.padding(horizontal = 20.dp)) {
-                Text(greeting, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(profile.name ?: "", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-            }
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) { append("$greeting, ") }
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(profile.name ?: "") }
+                },
+                Modifier.padding(horizontal = 20.dp), style = MaterialTheme.typography.headlineSmall,
+            )
         }
         item {
             Section("Continua a guardare") {

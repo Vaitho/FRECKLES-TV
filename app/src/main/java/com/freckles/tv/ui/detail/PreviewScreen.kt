@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.PreviewInfo
 import com.freckles.tv.data.remote.SearchItem
 import com.freckles.tv.data.remote.backdropUrl
+import com.freckles.tv.ui.common.ExpandableText
 import com.freckles.tv.ui.common.LocalRepo
 
 /** Anteprima di un titolo non ancora in libreria, con i pulsanti per aggiungerlo. */
@@ -113,7 +114,7 @@ fun PreviewScreen(
                             Text("  Apri su IMDb")
                         }
                     }
-                    if (!d.overview.isNullOrBlank()) Text(d.overview)
+                    if (!d.overview.isNullOrBlank()) ExpandableText(d.overview)
                     Spacer(Modifier.navigationBarsPadding().height(32.dp))
                 }
             }

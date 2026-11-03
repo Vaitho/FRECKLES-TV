@@ -1,6 +1,18 @@
 package com.freckles.tv.ui.common
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -177,7 +189,9 @@ fun CheckCircle(checked: Boolean, onToggle: () -> Unit, modifier: Modifier = Mod
                 .border(2.dp, border, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            if (checked) Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
+            AnimatedVisibility(checked, enter = scaleIn(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))) {
+                Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
+            }
         }
     }
 }
@@ -224,3 +238,34 @@ fun StarRating(rating: Int, onRate: (Int) -> Unit, modifier: Modifier = Modifier
 
 /** "★ 4" per le liste; null se non votato. */
 fun ratingLabel(rating: Int): String? = if (rating > 0) "★ $rating" else null
+
+/** Testo lungo (es. la trama) limitato a poche righe, con "Leggi tutto" solo se serve. */
+@Composable
+fun ExpandableText(text: String, modifier: Modifier = Modifier, color: Color = Color.Unspecified, collapsedLines: Int = 4) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    var overflows by remember { mutableStateOf(false) }
+    Column(modifier.animateContentSize()) {
+        Text(
+            text, color = color,
+            maxLines = if (expanded) Int.MAX_VALUE else collapsedLines, overflow = TextOverflow.Ellipsis,
+            onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
+        )
+        if (overflows || expanded) {
+            TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Mostra meno" else "Leggi tutto") }
+        }
+    }
+}
+
+/** Riga di chip informativi (anno, durata, generi...). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun InfoChips(items: List<String>, modifier: Modifier = Modifier) {
+    if (items.isEmpty()) return
+    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items.forEach {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                Text(it, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}

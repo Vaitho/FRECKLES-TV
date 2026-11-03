@@ -4,12 +4,12 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,24 +19,24 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,6 +56,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.freckles.tv.data.remote.backdropUrl
 import com.freckles.tv.ui.common.CheckCircle
+import com.freckles.tv.ui.common.ExpandableText
+import com.freckles.tv.ui.common.InfoChips
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.StarRating
 
@@ -67,7 +69,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
     val uri = LocalUriHandler.current
     val haptic = LocalHapticFeedback.current
     var confirmDelete by remember { mutableStateOf(false) }
-    var expanded by rememberSaveable { mutableStateOf(setOf<Int>()) }
+    var selected by rememberSaveable { mutableIntStateOf(-1) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) repo.say("Senza il permesso per le notifiche la campanella non potrà avvisarti")
     }
@@ -78,6 +80,10 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
     // Contano solo gli episodi già usciti (o già visti): quelli annunciati non abbassano l'avanzamento.
     val counted = episodes.filter { !it.isSpecial && (it.watched || (it.airDate != null && it.airDate <= today)) }
     val watched = counted.count { it.watched }
+    // Stagione mostrata: quella scelta, altrimenti la prima con episodi usciti da vedere, altrimenti l'ultima.
+    val current = selected.takeIf { it in bySeason }
+        ?: bySeason.keys.firstOrNull { k -> k != 0 && bySeason.getValue(k).any { !it.watched && it.airDate != null && it.airDate <= today } }
+        ?: bySeason.keys.lastOrNull { it != 0 } ?: bySeason.keys.firstOrNull()
 
     LazyColumn(Modifier.fillMaxSize()) {
         item { DetailHeader(imageUrl = backdropUrl(s.backdropPath ?: s.posterPath), title = s.title, onBack = onBack) }
@@ -97,6 +103,14 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
         }
         item {
             Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                InfoChips(
+                    listOfNotNull(
+                        episodes.filter { !it.isSpecial }.mapNotNull { it.airDate }.minOrNull()?.take(4),
+                        bySeason.keys.count { it != 0 }.takeIf { it > 0 }?.let { if (it == 1) "1 stagione" else "$it stagioni" },
+                        "~${s.defaultRuntime} min",
+                    ) + s.genres.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }.take(3),
+                    Modifier.padding(bottom = 4.dp),
+                )
                 Text("$watched / ${counted.size} episodi visti", fontWeight = FontWeight.SemiBold)
                 LinearProgressIndicator(
                     progress = { if (counted.isEmpty()) 0f else watched.toFloat() / counted.size },
@@ -105,69 +119,62 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
                 Text("Il tuo voto", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp))
                 StarRating(s.rating, { repo.setShowRating(s, it) })
                 if (!s.overview.isNullOrBlank()) {
-                    Text(s.overview, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                    ExpandableText(s.overview, Modifier.padding(top = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(Modifier.height(8.dp))
             }
         }
-        bySeason.forEach { (season, list) ->
-            val open = season in expanded
+        if (current != null) {
+            val list = bySeason.getValue(current)
             val seasonWatched = list.count { it.watched }
-            item(key = "season$season") {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp).animateContentSize(),
+            item(key = "seasonChips") {
+                LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(bySeason.keys.toList(), key = { it }) { season ->
+                        FilterChip(
+                            selected = season == current,
+                            onClick = { selected = season },
+                            label = { Text(if (season == 0) "Extra" else "Stagione $season") },
+                        )
+                    }
+                }
+            }
+            item(key = "seasonHeader$current") {
+                Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("$seasonWatched / ${list.size} episodi", style = MaterialTheme.typography.titleMedium)
+                        LinearProgressIndicator(
+                            progress = { if (list.isEmpty()) 0f else seasonWatched.toFloat() / list.size },
+                            modifier = Modifier.padding(top = 6.dp).fillMaxWidth(0.6f).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                        )
+                    }
+                    if (current != 0) {
+                        IconButton(onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            repo.setSeasonWatched(s.id, current, seasonWatched < list.size)
+                        }) {
+                            Icon(
+                                Icons.Filled.DoneAll, "Segna stagione",
+                                tint = if (seasonWatched == list.size) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+            items(list, key = { it.id }) { ep ->
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleEpisode(ep) }
+                        .padding(start = 12.dp, end = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column {
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clickable { expanded = if (open) expanded - season else expanded + season }
-                                .padding(start = 16.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(if (season == 0) "Extra" else "Stagione $season", style = MaterialTheme.typography.titleMedium)
-                                Text("$seasonWatched / ${list.size}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                LinearProgressIndicator(
-                                    progress = { if (list.isEmpty()) 0f else seasonWatched.toFloat() / list.size },
-                                    modifier = Modifier.padding(top = 6.dp).fillMaxWidth(0.6f).height(4.dp).clip(RoundedCornerShape(2.dp)),
-                                )
-                            }
-                            if (season != 0) {
-                                IconButton(onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    repo.setSeasonWatched(s.id, season, seasonWatched < list.size)
-                                }) {
-                                    Icon(
-                                        Icons.Filled.DoneAll, "Segna stagione",
-                                        tint = if (seasonWatched == list.size) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, Modifier.padding(end = 8.dp))
-                        }
-                        if (open) {
-                            list.forEach { ep ->
-                                Row(
-                                    Modifier.fillMaxWidth()
-                                        .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleEpisode(ep) }
-                                        .padding(start = 8.dp, end = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    CheckCircle(ep.watched, { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleEpisode(ep) })
-                                    Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
-                                        Text("${ep.number}. ${ep.name ?: "Episodio ${ep.number}"}")
-                                        Text(
-                                            listOfNotNull(ep.airDate, "${ep.runtime} min").joinToString(" · "),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(6.dp))
-                        }
+                    CheckCircle(ep.watched, { haptic.performHapticFeedback(HapticFeedbackType.LongPress); repo.toggleEpisode(ep) })
+                    Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
+                        Text("${ep.number}. ${ep.name ?: "Episodio ${ep.number}"}")
+                        Text(
+                            listOfNotNull(ep.airDate, "${ep.runtime} min").joinToString(" · "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
