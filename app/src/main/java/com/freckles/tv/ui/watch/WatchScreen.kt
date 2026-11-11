@@ -66,6 +66,17 @@ import com.freckles.tv.data.prefs.UserPrefs
 import com.freckles.tv.ui.common.PosterCard
 import com.freckles.tv.ui.common.SolidProgress
 import com.freckles.tv.ui.common.shimmerBrush
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import com.freckles.tv.data.remote.NightMovie
+import com.freckles.tv.data.remote.NightSeries
+import java.text.Normalizer
 import kotlinx.coroutines.launch
 
 /**
@@ -83,6 +94,7 @@ fun WatchScreen(
     val scope = rememberCoroutineScope()
     var editing by remember { mutableStateOf(data.api.base.isEmpty()) }
     var showSeries by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
     // Ogni volta che si torna qui (anche dal player) il progresso si aggiorna.
     LaunchedEffect(data) { data.refresh() }
     var pulling by remember { mutableStateOf(false) }
@@ -90,77 +102,80 @@ fun WatchScreen(
     val movies = data.movies
     // Ricalcolato solo quando cambiano i dati, non a ogni ridisegno.
     val cont = remember(data.movies, data.series, data.progress) { data.continueItems() }
-    PullToRefreshBox(
-        isRefreshing = pulling,
-        onRefresh = { scope.launch { pulling = true; data.refresh(full = true); pulling = false } },
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        LazyVerticalGrid(
-            GridCells.Adaptive(108.dp),
-            Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+    // Titoli già normalizzati (senza accenti né punteggiatura) per una ricerca istantanea in memoria.
+    val movieKeys = remember(movies) { movies.orEmpty().associate { it.id to searchKey(it.title) } }
+    val seriesKeys = remember(data.series) { data.series.associate { it.id to searchKey(it.title) } }
+    val words = remember(query) { searchKey(query).split(' ').filter { it.isNotEmpty() } }
+    val searching = words.isNotEmpty()
+
+    Column(Modifier.fillMaxSize()) {
+        SearchField(query, { query = it }, Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp))
+        PullToRefreshBox(
+            isRefreshing = pulling,
+            onRefresh = { scope.launch { pulling = true; data.refresh(full = true); pulling = false } },
+            modifier = Modifier.fillMaxSize(),
         ) {
-            full {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
-                        SegmentedButton(!showSeries, { showSeries = false }, SegmentedButtonDefaults.itemShape(0, 2)) {
-                            Text("Film" + (movies?.size?.let { " · $it" } ?: ""))
-                        }
-                        SegmentedButton(showSeries, { showSeries = true }, SegmentedButtonDefaults.itemShape(1, 2)) {
-                            Text("Serie" + (if (movies != null) " · ${data.series.size}" else ""))
-                        }
-                    }
-                    IconButton(onClick = { editing = true }) { Icon(Icons.Filled.Settings, "Indirizzo del server") }
-                }
-            }
-            when {
-                movies == null && data.error != null -> full {
-                    ErrorState(data.error!!, onRetry = { scope.launch { data.refresh(full = true) } }, onEdit = { editing = true })
-                }
-                movies == null -> items(9) {
-                    Box(Modifier.aspectRatio(2f / 3f).clip(RoundedCornerShape(18.dp)).background(shimmerBrush()))
-                }
-                else -> {
-                    if (cont.isNotEmpty()) {
-                        full { SectionTitle("Continua a guardare") }
-                        full {
-                            LazyRow(
-                                Modifier.bleed(20.dp),
-                                contentPadding = PaddingValues(horizontal = 20.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                items(cont, key = { it.fileId }) { ContinueCard(it) { onPlay(it.fileId) } }
+            LazyVerticalGrid(
+                GridCells.Adaptive(108.dp),
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (!searching) full {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
+                            SegmentedButton(!showSeries, { showSeries = false }, SegmentedButtonDefaults.itemShape(0, 2)) {
+                                Text("Film" + (movies?.size?.let { " · $it" } ?: ""))
+                            }
+                            SegmentedButton(showSeries, { showSeries = true }, SegmentedButtonDefaults.itemShape(1, 2)) {
+                                Text("Serie" + (if (movies != null) " · ${data.series.size}" else ""))
                             }
                         }
-                        full { SectionTitle(if (showSeries) "Tutte le serie" else "Tutti i film") }
+                        IconButton(onClick = { editing = true }) { Icon(Icons.Filled.Settings, "Indirizzo del server") }
                     }
-                    if (showSeries) {
-                        if (data.series.isEmpty()) full { EmptyText("Il server non ha trovato serie.") }
-                        items(data.series, key = { it.id }) { s ->
-                            val n = s.seasons.count { it.n > 0 }
-                            val all = s.seasons.flatMap { it.episodes }
-                            val seen = all.count { data.progress[it.id]?.watched == true }
-                            PosterCard(
-                                title = s.title, posterPath = null, imageUrl = s.image,
-                                subtitle = if (n > 0) "$n stagion${if (n == 1) "e" else "i"}" else null,
-                                progress = if (seen > 0 && seen < all.size) seen / all.size.toFloat() else null,
-                                corner = { if (all.isNotEmpty() && seen == all.size) WatchedBadge() },
-                                onClick = { onOpen("s/${s.id}") },
-                            )
+                }
+                when {
+                    movies == null && data.error != null -> full {
+                        ErrorState(data.error!!, onRetry = { scope.launch { data.refresh(full = true) } }, onEdit = { editing = true })
+                    }
+                    movies == null -> items(9) {
+                        Box(Modifier.aspectRatio(2f / 3f).clip(RoundedCornerShape(18.dp)).background(shimmerBrush()))
+                    }
+                    searching -> {
+                        // Tutte le parole devono comparire nel titolo, in qualsiasi punto.
+                        val foundMovies = movies.filter { m -> words.all { it in movieKeys[m.id].orEmpty() } }
+                        val foundSeries = data.series.filter { s -> words.all { it in seriesKeys[s.id].orEmpty() } }
+                        if (foundMovies.isEmpty() && foundSeries.isEmpty()) full { EmptyText("Nessun titolo trovato per “${query.trim()}”.") }
+                        if (foundMovies.isNotEmpty()) {
+                            full { SectionTitle("Film · ${foundMovies.size}") }
+                            movieCards(foundMovies, data, onOpen)
                         }
-                    } else {
-                        if (movies.isEmpty()) full { EmptyText("Il server non ha trovato film.") }
-                        items(movies, key = { it.id }) { m ->
-                            val p = m.versions.mapNotNull { data.progress[it.id] }.maxByOrNull { it.time }
-                            PosterCard(
-                                title = m.title, posterPath = null, imageUrl = m.image,
-                                subtitle = m.year?.toString(),
-                                progress = if (p.resumable && !p!!.watched) p.pos / p.dur.toFloat() else null,
-                                corner = { if (m.versions.any { data.progress[it.id]?.watched == true }) WatchedBadge() },
-                                onClick = { onOpen("m/${m.id}") },
-                            )
+                        if (foundSeries.isNotEmpty()) {
+                            full { SectionTitle("Serie · ${foundSeries.size}") }
+                            seriesCards(foundSeries, data, onOpen)
+                        }
+                    }
+                    else -> {
+                        if (cont.isNotEmpty()) {
+                            full { SectionTitle("Continua a guardare") }
+                            full {
+                                LazyRow(
+                                    Modifier.bleed(20.dp),
+                                    contentPadding = PaddingValues(horizontal = 20.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    items(cont, key = { it.fileId }) { ContinueCard(it) { onPlay(it.fileId) } }
+                                }
+                            }
+                            full { SectionTitle(if (showSeries) "Tutte le serie" else "Tutti i film") }
+                        }
+                        if (showSeries) {
+                            if (data.series.isEmpty()) full { EmptyText("Il server non ha trovato serie.") }
+                            seriesCards(data.series, data, onOpen)
+                        } else {
+                            if (movies.isEmpty()) full { EmptyText("Il server non ha trovato film.") }
+                            movieCards(movies, data, onOpen)
                         }
                     }
                 }
@@ -183,6 +198,55 @@ fun WatchScreen(
             dismissButton = { if (data.api.base.isNotEmpty()) TextButton({ editing = false }) { Text("Annulla") } },
         )
     }
+}
+
+private fun LazyGridScope.movieCards(list: List<NightMovie>, data: NightData, onOpen: (String) -> Unit) =
+    items(list, key = { "m" + it.id }) { m ->
+        val p = m.versions.mapNotNull { data.progress[it.id] }.maxByOrNull { it.time }
+        PosterCard(
+            title = m.title, posterPath = null, imageUrl = m.image,
+            subtitle = m.year?.toString(),
+            progress = if (p.resumable && !p!!.watched) p.pos / p.dur.toFloat() else null,
+            corner = { if (m.versions.any { data.progress[it.id]?.watched == true }) WatchedBadge() },
+            onClick = { onOpen("m/${m.id}") },
+        )
+    }
+
+private fun LazyGridScope.seriesCards(list: List<NightSeries>, data: NightData, onOpen: (String) -> Unit) =
+    items(list, key = { "s" + it.id }) { s ->
+        val n = s.seasons.count { it.n > 0 }
+        val all = s.seasons.flatMap { it.episodes }
+        val seen = all.count { data.progress[it.id]?.watched == true }
+        PosterCard(
+            title = s.title, posterPath = null, imageUrl = s.image,
+            subtitle = if (n > 0) "$n stagion${if (n == 1) "e" else "i"}" else null,
+            progress = if (seen > 0 && seen < all.size) seen / all.size.toFloat() else null,
+            corner = { if (all.isNotEmpty() && seen == all.size) WatchedBadge() },
+            onClick = { onOpen("s/${s.id}") },
+        )
+    }
+
+/** "Il fantasma dell'Opera" -> "il fantasma dell opera": minuscole, senza accenti né punteggiatura. */
+internal fun searchKey(s: String) = Normalizer.normalize(s, Normalizer.Form.NFD)
+    .replace(Regex("\\p{M}+"), "").lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
+
+@Composable
+private fun SearchField(query: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    val focus = LocalFocusManager.current
+    TextField(
+        query, onChange, modifier.fillMaxWidth(),
+        placeholder = { Text("Cerca film e serie") },
+        leadingIcon = { Icon(Icons.Filled.Search, null) },
+        trailingIcon = { if (query.isNotEmpty()) IconButton({ onChange(""); focus.clearFocus() }) { Icon(Icons.Filled.Close, "Cancella ricerca") } },
+        singleLine = true,
+        shape = CircleShape,
+        colors = TextFieldDefaults.colors(
+            focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh, unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
+    )
 }
 
 private fun LazyGridScope.full(content: @Composable () -> Unit) = item(span = { GridItemSpan(maxLineSpan) }) { content() }
