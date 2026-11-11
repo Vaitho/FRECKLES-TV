@@ -1,7 +1,14 @@
 package com.freckles.tv.ui.common
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -45,6 +52,29 @@ fun SearchField(query: String, onChange: (String) -> Unit, placeholder: String, 
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
     )
+}
+
+/** Schermata vuota dell'app: icona, titolo, spiegazione e fino a due azioni (Libreria, Guarda). */
+@Composable
+fun EmptyState(
+    icon: ImageVector,
+    title: String,
+    text: String,
+    modifier: Modifier = Modifier,
+    action: Pair<String, () -> Unit>? = null,
+    secondary: Pair<String, () -> Unit>? = null,
+) {
+    Column(
+        modifier.fillMaxWidth().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(icon, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.outline)
+        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        action?.let { (label, onClick) -> FilledTonalButton(onClick) { Text(label) } }
+        secondary?.let { (label, onClick) -> TextButton(onClick) { Text(label) } }
+    }
 }
 
 /** Stato "visto" sull'angolo di una copertina o miniatura (non è un pulsante). */

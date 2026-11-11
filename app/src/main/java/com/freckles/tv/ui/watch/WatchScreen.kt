@@ -63,7 +63,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import com.freckles.tv.data.prefs.UserPrefs
+import com.freckles.tv.ui.common.EmptyState
 import com.freckles.tv.ui.common.PosterCard
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Tv
 import com.freckles.tv.ui.common.SearchField
 import com.freckles.tv.ui.common.WatchedBadge
 import com.freckles.tv.ui.common.SolidProgress
@@ -139,7 +142,11 @@ fun WatchScreen(
                 }
                 when {
                     movies == null && data.error != null -> full {
-                        ErrorState(data.error!!, onRetry = { scope.launch { data.refresh(full = true) } }, onEdit = { editing = true })
+                        EmptyState(
+                            Icons.Filled.CloudOff, "Server non raggiungibile", data.error!!,
+                            action = "Riprova" to { scope.launch { data.refresh(full = true) } },
+                            secondary = "Cambia indirizzo" to { editing = true },
+                        )
                     }
                     movies == null -> items(9) {
                         Box(Modifier.aspectRatio(2f / 3f).clip(RoundedCornerShape(18.dp)).background(shimmerBrush()))
@@ -148,7 +155,7 @@ fun WatchScreen(
                         // Tutte le parole devono comparire nel titolo, in qualsiasi punto.
                         val foundMovies = movies.filter { m -> words.all { it in movieKeys[m.id].orEmpty() } }
                         val foundSeries = data.series.filter { s -> words.all { it in seriesKeys[s.id].orEmpty() } }
-                        if (foundMovies.isEmpty() && foundSeries.isEmpty()) full { EmptyText("Nessun titolo trovato per “${query.trim()}”.") }
+                        if (foundMovies.isEmpty() && foundSeries.isEmpty()) full { EmptyState(Icons.Filled.Search, "Nessun risultato", "Nessun titolo sul server corrisponde a “${query.trim()}”.") }
                         if (foundMovies.isNotEmpty()) {
                             full { SectionTitle("Film · ${foundMovies.size}") }
                             movieCards(foundMovies, data, onOpen)
@@ -173,10 +180,22 @@ fun WatchScreen(
                             full { SectionTitle(if (showSeries) "Tutte le serie" else "Tutti i film") }
                         }
                         if (showSeries) {
-                            if (data.series.isEmpty()) full { EmptyText("Il server non ha trovato serie.") }
+                            if (data.series.isEmpty()) full {
+                                EmptyState(
+                                    Icons.Filled.Tv, "Nessuna serie sul server",
+                                    "Sul PC metti ogni serie in una sua cartella dentro la cartella delle serie, poi aggiorna.",
+                                    action = "Aggiorna" to { scope.launch { data.refresh(full = true) } },
+                                )
+                            }
                             seriesCards(data.series, data, onOpen)
                         } else {
-                            if (movies.isEmpty()) full { EmptyText("Il server non ha trovato film.") }
+                            if (movies.isEmpty()) full {
+                                EmptyState(
+                                    Icons.Filled.Movie, "Nessun film sul server",
+                                    "Sul PC aggiungi i film nella cartella dei film, poi aggiorna.",
+                                    action = "Aggiorna" to { scope.launch { data.refresh(full = true) } },
+                                )
+                            }
                             movieCards(movies, data, onOpen)
                         }
                     }
@@ -246,11 +265,6 @@ private fun SectionTitle(text: String) {
     Text(text, Modifier.padding(top = 6.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
 }
 
-@Composable
-private fun EmptyText(text: String) {
-    Text(text, Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
 /** Scheda larga 16:9 della fila "Continua a guardare". */
 @Composable
 private fun ContinueCard(item: ContinueItem, onClick: () -> Unit) {
@@ -274,15 +288,5 @@ private fun ContinueCard(item: ContinueItem, onClick: () -> Unit) {
             item.subtitle, Modifier.padding(start = 2.dp), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@Composable
-private fun ErrorState(message: String, onRetry: () -> Unit, onEdit: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(top = 48.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Icon(Icons.Filled.CloudOff, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(message, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onRetry) { Text("Riprova") }
-        TextButton(onEdit) { Text("Cambia indirizzo") }
     }
 }

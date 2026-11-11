@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.db.GameStatus
 import com.freckles.tv.ui.common.LocalRepo
+import com.freckles.tv.ui.common.EmptyState
 import com.freckles.tv.ui.common.PosterCard
 import com.freckles.tv.ui.common.SearchField
 import com.freckles.tv.ui.common.WatchedBadge
@@ -167,15 +168,11 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
             }
 
             if ((tab == 0 && shownShows.isEmpty()) || (tab == 1 && shownMovies.isEmpty()) || (tab == 2 && shownGames.isEmpty())) {
-                Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(Icons.Filled.VideoLibrary, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.outline)
-                    Text("Niente da mostrare qui", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        if (q.isNotEmpty()) "Nessun risultato per \"$q\"." else "Cambia filtro oppure cerca qualcosa da aggiungere.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-                    )
-                    FilledTonalButton(onClick = onSearch) { Text("Cerca titoli") }
-                }
+                EmptyState(
+                    Icons.Filled.VideoLibrary, "Niente da mostrare qui",
+                    if (q.isNotEmpty()) "Nessun risultato per “$q”." else "Cambia filtro oppure cerca qualcosa da aggiungere.",
+                    action = "Cerca titoli" to onSearch,
+                )
             }
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(110.dp),
