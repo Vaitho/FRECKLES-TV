@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.freckles.tv.util.isGenericEpisodeName
+import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 
@@ -248,16 +250,42 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
         for (s in d.seasons) {
             if (onlyChanged && s.seasonNumber != lastSeason && local[s.seasonNumber] == s.episodeCount) continue
             val sd = runCatching { api.season(d.id, s.seasonNumber) }.getOrNull() ?: continue
+            val english = if (sd.episodes.any { isGenericEpisodeName(it.name) }) englishNames(d.id, s.seasonNumber) else emptyMap()
             val list = sd.episodes.map {
                 EpisodeEntity(
                     showId = showId, season = s.seasonNumber, number = it.episodeNumber,
-                    name = it.name, runtime = it.runtime?.takeIf { r -> r > 0 } ?: defaultRuntime,
+                    name = if (isGenericEpisodeName(it.name)) english[it.episodeNumber] ?: it.name else it.name, runtime = it.runtime?.takeIf { r -> r > 0 } ?: defaultRuntime,
                     airDate = it.airDate, isSpecial = s.seasonNumber == 0,
                 )
             }
             db.withTransaction {
                 episodes.insertNew(list)
                 if (onlyChanged) list.forEach { episodes.updateMeta(showId, it.season, it.number, it.name, it.runtime, it.airDate) }
+            }
+        }
+    }
+
+    /** Titoli inglesi (non generici) di una stagione, per numero di episodio; vuoto se TMDB non risponde. */
+    private suspend fun englishNames(tmdbId: Int, season: Int): Map<Int, String> =
+        runCatching { api.season(tmdbId, season, "en-US").episodes }.getOrDefault(emptyList())
+            .mapNotNull { e -> e.name?.takeUnless(::isGenericEpisodeName)?.let { e.episodeNumber to it } }.toMap()
+
+    private val namesTried = ConcurrentHashMap.newKeySet<Long>()
+
+    /**
+     * Serie già in libreria con episodi senza titolo italiano ("Episodio 3"): prova il titolo inglese.
+     * Una volta per serie a ogni avvio; aggiorna solo il nome, non lo stato di visione.
+     */
+    fun fillEpisodeNames(showId: Long) {
+        if (!namesTried.add(showId)) return
+        scope.launch {
+            runCatching {
+                val tmdbId = shows.observe(showId).first()?.tmdbId ?: return@runCatching
+                val generic = episodes.listForShow(showId).filter { isGenericEpisodeName(it.name) }
+                for ((season, eps) in generic.groupBy { it.season }) {
+                    val english = englishNames(tmdbId, season)
+                    eps.forEach { e -> english[e.number]?.let { episodes.updateName(e.id, it) } }
+                }
             }
         }
     }

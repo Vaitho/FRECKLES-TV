@@ -73,6 +73,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
     val repo = LocalRepo.current
     val show by remember(id) { repo.observeShow(id) }.collectAsStateWithLifecycle(null)
     val episodes by remember(id) { repo.observeEpisodes(id) }.collectAsStateWithLifecycle(emptyList())
+    LaunchedEffect(id) { repo.fillEpisodeNames(id) }
     val uri = LocalUriHandler.current
     val haptic = LocalHapticFeedback.current
     var confirmDelete by remember { mutableStateOf(false) }

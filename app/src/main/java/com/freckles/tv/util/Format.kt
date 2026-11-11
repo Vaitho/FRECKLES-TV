@@ -23,6 +23,11 @@ fun formatDate(iso: String?): String? {
     return if (day != null && month != null) "$day $month ${p[0]}" else iso
 }
 
+private val genericEpisodeName = Regex("""^(Episodio|Episode)\s+\d+$""", RegexOption.IGNORE_CASE)
+
+/** Titolo mancante o segnaposto di TMDB ("Episodio 3", "Episode 3"). */
+fun isGenericEpisodeName(name: String?) = name.isNullOrBlank() || genericEpisodeName.matches(name.trim())
+
 /** "12 h 30 min" */
 fun formatHours(minutes: Int): String {
     val h = minutes / 60

@@ -105,6 +105,9 @@ interface EpisodeDao {
     @Update
     suspend fun update(episode: EpisodeEntity)
 
+    @Query("UPDATE episodes SET name = :name WHERE id = :id")
+    suspend fun updateName(id: Long, name: String)
+
     @Query(
         """UPDATE episodes SET watched = :watched,
            watchedAt = CASE WHEN :watched = 1 THEN :now ELSE NULL END,

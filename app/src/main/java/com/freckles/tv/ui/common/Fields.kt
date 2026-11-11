@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SearchField(query: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
     val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     TextField(
         query, onChange, modifier.fillMaxWidth(),
         placeholder = { Text(placeholder) },
@@ -50,7 +52,9 @@ fun SearchField(query: String, onChange: (String) -> Unit, placeholder: String, 
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh, unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
+        // Solo la tastiera si chiude: togliendo il focus, con una tastiera fisica il rilascio di Invio
+        // finirebbe sul primo elemento in alto (l'avatar) e aprirebbe il menu.
+        keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
     )
 }
 

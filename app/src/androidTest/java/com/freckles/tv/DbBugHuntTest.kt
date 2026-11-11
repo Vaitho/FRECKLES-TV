@@ -47,6 +47,7 @@ class DbBugHuntTest {
         }
         override suspend fun season(id: Int, season: Int) =
             SeasonDetails(season, (1..3).map { TvEpisode(it, season, "Ep $it", 30, airDate) })
+        override suspend fun season(id: Int, season: Int, language: String) = season(id, season)
         override suspend fun movie(id: Int) = MovieDetails(id, "Film $id", runtime = 100)
         override suspend fun search(query: String) = SearchResponse()
         override suspend fun trending() = SearchResponse()

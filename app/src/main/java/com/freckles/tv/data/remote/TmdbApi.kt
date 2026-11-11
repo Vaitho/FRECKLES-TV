@@ -158,6 +158,9 @@ interface TmdbApi {
     @GET("tv/{id}/season/{season}")
     suspend fun season(@Path("id") id: Int, @Path("season") season: Int): SeasonDetails
 
+    @GET("tv/{id}/season/{season}")
+    suspend fun season(@Path("id") id: Int, @Path("season") season: Int, @Query("language") language: String): SeasonDetails
+
     @GET("movie/{id}")
     suspend fun movie(@Path("id") id: Int): MovieDetails
 
@@ -183,7 +186,7 @@ interface TmdbApi {
                     val req = chain.request()
                     val url = req.url.newBuilder()
                         .addQueryParameter("api_key", BuildConfig.TMDB_API_KEY)
-                        .addQueryParameter("language", "it-IT")
+                        .apply { if (req.url.queryParameter("language") == null) addQueryParameter("language", "it-IT") }
                         .build()
                     chain.proceed(req.newBuilder().url(url).build())
                 }

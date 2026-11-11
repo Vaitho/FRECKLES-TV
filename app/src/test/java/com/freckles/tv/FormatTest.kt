@@ -54,4 +54,15 @@ class FormatTest {
         assertEquals(null, com.freckles.tv.util.formatDate(null))
         assertEquals("2026", com.freckles.tv.util.formatDate("2026")) // non riconosciuta: resta com'è
     }
+
+    @Test
+    fun titoliGenericiDegliEpisodi() {
+        val g: (String?) -> Boolean = { com.freckles.tv.util.isGenericEpisodeName(it) }
+        assertEquals(true, g("Episodio 3"))
+        assertEquals(true, g("Episode 12"))
+        assertEquals(true, g(null))
+        assertEquals(true, g("  "))
+        assertEquals(false, g("Episodio speciale"))
+        assertEquals(false, g("Pilota - Prima parte"))
+    }
 }
