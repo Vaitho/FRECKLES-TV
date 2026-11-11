@@ -67,6 +67,10 @@ import com.freckles.tv.ui.profile.ProfileScreen
 import com.freckles.tv.ui.search.SearchScreen
 import com.freckles.tv.ui.settings.SettingsScreen
 import com.freckles.tv.ui.stats.StatsScreen
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.Spacer
 import kotlinx.coroutines.launch
 
 private enum class Tab(val route: String, val label: String, val title: String, val icon: ImageVector) {
@@ -89,6 +93,15 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
     val night = remember(profile.nightUrl) { NightData(NightApi(profile.nightUrl)) }
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val currentTab = Tab.entries.firstOrNull { it.route == route }
+    // Telefono in orizzontale (o schermo largo): barra di navigazione laterale invece che in basso.
+    val wide = LocalConfiguration.current.run { screenWidthDp > screenHeightDp }
+    val goTab = { tab: Tab ->
+        nav.navigate(tab.route) {
+            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawer,
@@ -106,7 +119,7 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             snackbarHost = { SnackbarHost(snackbar) },
             topBar = {
-                if (currentTab != null) {
+                if (currentTab != null && !wide) {
                     Row(
                         Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -122,17 +135,11 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                 }
             },
             bottomBar = {
-                if (currentTab != null) NavigationBar {
+                if (currentTab != null && !wide) NavigationBar {
                     Tab.entries.forEach { tab ->
                         NavigationBarItem(
                             selected = route == tab.route,
-                            onClick = {
-                                nav.navigate(tab.route) {
-                                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { goTab(tab) },
                             icon = { Icon(tab.icon, tab.label) },
                             label = { Text(tab.label) },
                         )
@@ -147,11 +154,25 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
             val openGamePreview = { extId: String -> nav.navigate("gamepreview/${extId.replace(':', '_')}") }
             val openPreview = { type: String, id: Int -> nav.navigate("preview/$type/$id") }
             // Le righe del cast aprono la pagina dell’attore da qualunque schermata di dettaglio.
+            // In orizzontale la barra in alto non c'è: le schede principali lasciano spazio alla barra di stato.
+            Row(Modifier.padding(padding).then(if (wide && currentTab != null) Modifier.statusBarsPadding() else Modifier)) {
+            if (wide && currentTab != null) NavigationRail(header = { Avatar(profile, 42.dp, onClick = { scope.launch { drawer.open() } }) }) {
+                Spacer(Modifier.weight(1f))
+                Tab.entries.forEach { tab ->
+                    NavigationRailItem(
+                        selected = route == tab.route,
+                        onClick = { goTab(tab) },
+                        icon = { Icon(tab.icon, tab.label) },
+                        label = { Text(tab.label) },
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+            }
             CompositionLocalProvider(LocalOpenPerson provides { id: Int -> nav.navigate("person/$id") }) {
                 NavHost(
                     nav,
                     startDestination = Tab.Home.route,
-                    modifier = Modifier.padding(padding),
+                    modifier = Modifier.weight(1f),
                     enterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f) },
                     exitTransition = { fadeOut(tween(120)) },
                     popEnterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f) },
@@ -217,6 +238,7 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                         MovieDetailScreen(it.arguments!!.getLong("id")) { nav.popBackStack() }
                     }
                 }
+            }
             }
         }
     }
