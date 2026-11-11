@@ -47,6 +47,10 @@ import com.freckles.tv.data.db.GameStatus
 import com.freckles.tv.data.remote.posterUrl
 import com.freckles.tv.ui.common.AddMenu
 import com.freckles.tv.ui.common.LocalRepo
+import com.freckles.tv.ui.common.SearchField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 
 @Composable
 fun SearchScreen(
@@ -67,18 +71,13 @@ fun SearchScreen(
     val games by repo.allGames.collectAsStateWithLifecycle(emptyList())
 
     Column(Modifier.fillMaxSize().padding(top = 8.dp)) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = vm::onQuery,
-            placeholder = { Text(if (mode == SearchMode.Media) "Cerca serie e film" else "Cerca videogiochi") },
-            leadingIcon = { Icon(Icons.Filled.Search, null) },
-            singleLine = true,
-            shape = RoundedCornerShape(28.dp),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        SearchField(
+            query, vm::onQuery, if (mode == SearchMode.Media) "Cerca serie e film" else "Cerca videogiochi",
+            Modifier.padding(horizontal = 20.dp),
         )
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(mode == SearchMode.Media, { vm.onMode(SearchMode.Media) }, { Text("Film e serie") })
-            FilterChip(mode == SearchMode.Games, { vm.onMode(SearchMode.Games) }, { Text("Videogiochi") })
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+            SegmentedButton(mode == SearchMode.Media, { vm.onMode(SearchMode.Media) }, SegmentedButtonDefaults.itemShape(0, 2)) { Text("Film e serie") }
+            SegmentedButton(mode == SearchMode.Games, { vm.onMode(SearchMode.Games) }, SegmentedButtonDefaults.itemShape(1, 2)) { Text("Videogiochi") }
         }
         Box(Modifier.fillMaxSize()) {
             val empty = if (mode == SearchMode.Media) state.results.isEmpty() else state.games.isEmpty()

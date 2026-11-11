@@ -51,6 +51,7 @@ import com.freckles.tv.ui.common.ExpandableText
 import com.freckles.tv.ui.common.InfoChips
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.SolidProgress
+import com.freckles.tv.ui.common.WatchedBadge
 import com.freckles.tv.ui.common.shimmerBrush
 import com.freckles.tv.ui.detail.DetailHeader
 import kotlinx.coroutines.launch

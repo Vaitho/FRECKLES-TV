@@ -55,6 +55,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freckles.tv.data.db.GameStatus
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.PosterCard
+import com.freckles.tv.ui.common.SearchField
+import com.freckles.tv.ui.common.WatchedBadge
 import com.freckles.tv.ui.common.ratingLabel
 import com.freckles.tv.util.formatHours
 
@@ -113,14 +115,7 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                 Tab(selected = tab == 1, onClick = { tab = 1; filter = 0 }, text = { Text("Film (${movies.size})") })
                 Tab(selected = tab == 2, onClick = { tab = 2; filter = 0 }, text = { Text("Giochi (${games.size})") })
             }
-            OutlinedTextField(
-                value = query, onValueChange = { query = it }, singleLine = true,
-                placeholder = { Text("Cerca nella libreria") },
-                leadingIcon = { Icon(Icons.Filled.Search, null) },
-                trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, "Cancella") } },
-                shape = CircleShape,
-                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp),
-            )
+            SearchField(query, { query = it }, "Cerca nella libreria", Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp))
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -203,7 +198,8 @@ fun LibraryScreen(onOpenShow: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onOpe
                         PosterCard(
                             title = m.title,
                             posterPath = m.posterPath,
-                            subtitle = listOfNotNull(if (m.watched) "Visto" else null, ratingLabel(m.rating)).joinToString(" · ").ifBlank { null },
+                            subtitle = ratingLabel(m.rating),
+                            corner = { if (m.watched) WatchedBadge() },
                             onClick = { onOpenMovie(m.id) },
                         )
                     }

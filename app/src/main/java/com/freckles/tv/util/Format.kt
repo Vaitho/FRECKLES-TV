@@ -13,6 +13,16 @@ fun formatDuration(totalMinutes: Long): String {
     return parts.joinToString(" ")
 }
 
+val shortMonths = listOf("gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic")
+
+/** "2026-10-08" -> "8 ott 2026"; una data non riconosciuta resta com'è. */
+fun formatDate(iso: String?): String? {
+    val p = iso?.split("-") ?: return null
+    val day = p.getOrNull(2)?.toIntOrNull()
+    val month = p.getOrNull(1)?.toIntOrNull()?.let { shortMonths.getOrNull(it - 1) }
+    return if (day != null && month != null) "$day $month ${p[0]}" else iso
+}
+
 /** "12 h 30 min" */
 fun formatHours(minutes: Int): String {
     val h = minutes / 60

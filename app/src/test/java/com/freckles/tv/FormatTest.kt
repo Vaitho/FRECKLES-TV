@@ -46,4 +46,12 @@ class FormatTest {
         val totals = genreTotals(items, limit = 3)
         assertEquals(listOf("G10", "G9", "G8"), totals.map { it.first })
     }
+
+    @Test
+    fun dataLeggibile() {
+        assertEquals("8 ott 2026", com.freckles.tv.util.formatDate("2026-10-08"))
+        assertEquals("1 gen 2027", com.freckles.tv.util.formatDate("2027-01-01"))
+        assertEquals(null, com.freckles.tv.util.formatDate(null))
+        assertEquals("2026", com.freckles.tv.util.formatDate("2026")) // non riconosciuta: resta com'è
+    }
 }

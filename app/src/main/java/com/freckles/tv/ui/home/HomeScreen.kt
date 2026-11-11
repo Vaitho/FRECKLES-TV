@@ -24,7 +24,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Visibility
+import com.freckles.tv.util.shortMonths
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -125,7 +126,7 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
                                 posterPath = show.posterPath,
                                 subtitle = "S${ep.season}E${ep.number}" + (ep.name?.let { " · $it" } ?: ""),
                                 modifier = Modifier.width(150.dp),
-                                corner = { CornerButton(Icons.Filled.Check, "Segna come visto") { repo.toggleEpisode(ep) } },
+                                corner = { CornerButton(Icons.Filled.Visibility, "Segna come visto") { repo.toggleEpisode(ep) } },
                                 onClick = { onOpenShow(show.id) },
                             )
                         }
@@ -219,8 +220,6 @@ private fun Section(title: String, content: @Composable () -> Unit) {
         content()
     }
 }
-
-private val shortMonths = listOf("gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic")
 
 /** "2026-11-14" -> "14", "nov". */
 private fun airDay(date: String?) = date?.takeLast(2)?.trimStart('0').orEmpty()

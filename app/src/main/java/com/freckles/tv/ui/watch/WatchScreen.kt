@@ -64,6 +64,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import com.freckles.tv.data.prefs.UserPrefs
 import com.freckles.tv.ui.common.PosterCard
+import com.freckles.tv.ui.common.SearchField
+import com.freckles.tv.ui.common.WatchedBadge
 import com.freckles.tv.ui.common.SolidProgress
 import com.freckles.tv.ui.common.shimmerBrush
 import androidx.compose.foundation.text.KeyboardActions
@@ -109,14 +111,14 @@ fun WatchScreen(
     val searching = words.isNotEmpty()
 
     Column(Modifier.fillMaxSize()) {
-        SearchField(query, { query = it }, Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp))
+        SearchField(query, { query = it }, "Cerca film e serie", Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp))
         PullToRefreshBox(
             isRefreshing = pulling,
             onRefresh = { scope.launch { pulling = true; data.refresh(full = true); pulling = false } },
             modifier = Modifier.fillMaxSize(),
         ) {
             LazyVerticalGrid(
-                GridCells.Adaptive(108.dp),
+                GridCells.Adaptive(110.dp),
                 Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -230,25 +232,6 @@ private fun LazyGridScope.seriesCards(list: List<NightSeries>, data: NightData, 
 internal fun searchKey(s: String) = Normalizer.normalize(s, Normalizer.Form.NFD)
     .replace(Regex("\\p{M}+"), "").lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
 
-@Composable
-private fun SearchField(query: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
-    val focus = LocalFocusManager.current
-    TextField(
-        query, onChange, modifier.fillMaxWidth(),
-        placeholder = { Text("Cerca film e serie") },
-        leadingIcon = { Icon(Icons.Filled.Search, null) },
-        trailingIcon = { if (query.isNotEmpty()) IconButton({ onChange(""); focus.clearFocus() }) { Icon(Icons.Filled.Close, "Cancella ricerca") } },
-        singleLine = true,
-        shape = CircleShape,
-        colors = TextFieldDefaults.colors(
-            focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh, unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
-    )
-}
-
 private fun LazyGridScope.full(content: @Composable () -> Unit) = item(span = { GridItemSpan(maxLineSpan) }) { content() }
 
 /** Lascia uscire una riga orizzontale fino ai bordi dello schermo, oltre il margine della griglia. */
@@ -266,14 +249,6 @@ private fun SectionTitle(text: String) {
 @Composable
 private fun EmptyText(text: String) {
     Text(text, Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
-/** Spunta tonda "visto" da mettere sull'angolo di una copertina. */
-@Composable
-internal fun WatchedBadge(size: Dp = 28.dp) {
-    Box(Modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-        Icon(Icons.Filled.Check, "Visto", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(size * 0.62f))
-    }
 }
 
 /** Scheda larga 16:9 della fila "Continua a guardare". */

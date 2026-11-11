@@ -65,6 +65,7 @@ import com.freckles.tv.ui.common.ExpandableText
 import com.freckles.tv.ui.common.InfoChips
 import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.StarRating
+import com.freckles.tv.util.formatDate
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -141,7 +142,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
                         FilterChip(
                             selected = season == current,
                             onClick = { selected = season },
-                            label = { Text(if (season == 0) "Extra" else "Stagione $season") },
+                            label = { Text(if (season == 0) "Speciali" else "Stagione $season") },
                         )
                     }
                 }
@@ -179,7 +180,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
                     Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
                         Text("${ep.number}. ${ep.name ?: "Episodio ${ep.number}"}")
                         Text(
-                            listOfNotNull(ep.airDate, "${ep.runtime} min").joinToString(" · "),
+                            listOfNotNull(formatDate(ep.airDate), "${ep.runtime} min").joinToString(" · "),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

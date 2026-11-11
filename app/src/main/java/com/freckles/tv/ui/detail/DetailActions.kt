@@ -127,7 +127,7 @@ private fun ActionPill(
     Column(
         modifier
             .scale(scale)
-            .clip(RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(24.dp))
             .background(bg)
             .clickable(interactionSource = interaction, indication = ripple(), onClick = onClick)
             .padding(vertical = 14.dp),
