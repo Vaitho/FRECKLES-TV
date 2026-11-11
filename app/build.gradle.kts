@@ -89,6 +89,9 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
 
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
+    implementation(libs.media3.ffmpeg)
     implementation(libs.coil.compose)
     implementation(libs.work.runtime)
     implementation(libs.datastore)

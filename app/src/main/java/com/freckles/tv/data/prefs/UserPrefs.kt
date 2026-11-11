@@ -29,6 +29,8 @@ data class Profile(
     /** Cartella (SAF tree URI) del backup automatico giornaliero; null = disattivato. */
     val autoBackupUri: String? = null,
     val lastAutoBackup: Long? = null,
+    /** Indirizzo del server FrecklesNight in LAN (es. http://192.168.1.20:8787); vuoto = non configurato. */
+    val nightUrl: String = "",
 )
 
 class UserPrefs(private val context: Context) {
@@ -42,6 +44,7 @@ class UserPrefs(private val context: Context) {
         val favs = stringPreferencesKey("top_favorites")
         val gameFavs = stringPreferencesKey("top_game_favorites")
         val backupUri = stringPreferencesKey("auto_backup_uri")
+        val nightUrl = stringPreferencesKey("night_url")
         val lastBackup = androidx.datastore.preferences.core.longPreferencesKey("last_auto_backup")
     }
 
@@ -57,6 +60,7 @@ class UserPrefs(private val context: Context) {
             gameFavorites = p[K.gameFavs]?.split(",")?.filter { it.isNotBlank() } ?: emptyList(),
             autoBackupUri = p[K.backupUri],
             lastAutoBackup = p[K.lastBackup],
+            nightUrl = p[K.nightUrl] ?: "",
         )
     }
 
@@ -71,6 +75,7 @@ class UserPrefs(private val context: Context) {
     suspend fun setAccent(id: String) = edit { it[K.accent] = id }
     suspend fun setFavorites(list: List<String>) = edit { it[K.favs] = list.take(5).joinToString(",") }
     suspend fun setAutoBackupUri(uri: String?) = edit { if (uri == null) it.remove(K.backupUri) else it[K.backupUri] = uri }
+    suspend fun setNightUrl(url: String) = edit { it[K.nightUrl] = url.trim() }
     suspend fun setLastAutoBackup(time: Long) = edit { it[K.lastBackup] = time }
     suspend fun setGameFavorites(list: List<String>) = edit { it[K.gameFavs] = list.take(5).joinToString(",") }
 }

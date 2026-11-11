@@ -55,6 +55,13 @@ import com.freckles.tv.ui.detail.PreviewScreen
 import com.freckles.tv.ui.detail.ShowDetailScreen
 import com.freckles.tv.ui.home.HomeScreen
 import com.freckles.tv.ui.library.LibraryScreen
+import androidx.compose.material.icons.filled.PlayCircle
+import com.freckles.tv.data.remote.NightApi
+import com.freckles.tv.ui.watch.PlayerScreen
+import com.freckles.tv.ui.watch.WatchScreen
+import com.freckles.tv.ui.watch.NightData
+import com.freckles.tv.ui.watch.WatchMovieScreen
+import com.freckles.tv.ui.watch.WatchSeriesScreen
 import com.freckles.tv.ui.profile.AppDrawer
 import com.freckles.tv.ui.profile.ProfileScreen
 import com.freckles.tv.ui.search.SearchScreen
@@ -66,6 +73,7 @@ private enum class Tab(val route: String, val label: String, val title: String, 
     Home("home", "Home", "Freckles TV", Icons.Filled.Home),
     Search("search", "Cerca", "Cerca", Icons.Filled.Search),
     Library("library", "Libreria", "La tua libreria", Icons.Filled.VideoLibrary),
+    Watch("watch", "Guarda", "Guarda", Icons.Filled.PlayCircle),
     Stats("stats", "Statistiche", "Statistiche", Icons.Filled.BarChart),
 }
 
@@ -78,6 +86,7 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
     val drawer = rememberDrawerState(DrawerValue.Closed)
     LaunchedEffect(Unit) { repo.messages.collect { snackbar.showSnackbar(it) } }
 
+    val night = remember(profile.nightUrl) { NightData(NightApi(profile.nightUrl)) }
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val currentTab = Tab.entries.firstOrNull { it.route == route }
 
@@ -158,6 +167,21 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                                 restoreState = true
                             }
                         }
+                    }
+                    composable(Tab.Watch.route) {
+                        WatchScreen(night, prefs, onOpen = { nav.navigate("watch/$it") }, onPlay = { nav.navigate("play/$it") })
+                    }
+                    composable("watch/m/{id}", listOf(navArgument("id") { type = NavType.StringType })) {
+                        WatchMovieScreen(night, it.arguments?.getString("id").orEmpty(), { nav.popBackStack() }) { fid, fromStart -> nav.navigate("play/$fid?restart=$fromStart") }
+                    }
+                    composable("watch/s/{id}", listOf(navArgument("id") { type = NavType.StringType })) {
+                        WatchSeriesScreen(night, it.arguments?.getString("id").orEmpty(), { nav.popBackStack() }) { nav.navigate("play/$it") }
+                    }
+                    composable(
+                        "play/{fid}?restart={restart}",
+                        listOf(navArgument("fid") { type = NavType.StringType }, navArgument("restart") { type = NavType.BoolType; defaultValue = false }),
+                    ) {
+                        PlayerScreen(night.api, it.arguments?.getString("fid").orEmpty(), it.arguments?.getBoolean("restart") == true) { nav.popBackStack() }
                     }
                     composable(Tab.Stats.route) { StatsScreen(openShow) }
                     composable("settings") { SettingsScreen { nav.popBackStack() } }
