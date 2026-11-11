@@ -26,6 +26,9 @@ class AutoBackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
     override suspend fun doWork(): Result {
         val app = applicationContext as FreckleApp
         val folder = app.prefs.profile.first().autoBackupUri ?: return Result.success()
+        // Libreria vuota (es. app appena reinstallata): un backup vuoto sostituirebbe, giorno dopo giorno, quelli buoni.
+        val db = app.db
+        if (db.showDao().listAll().isEmpty() && db.movieDao().listAll().isEmpty() && db.gameDao().listAll().isEmpty()) return Result.success()
         return runCatching {
             write(applicationContext, Uri.parse(folder), app.repository.exportJson())
             app.prefs.setLastAutoBackup(System.currentTimeMillis())

@@ -57,7 +57,7 @@ fun HomeScreen(profile: Profile, onOpenShow: (Long) -> Unit, onOpenMovie: (Long)
     }
     val upcoming by repo.upcoming.collectAsStateWithLifecycle(emptyList())
     val pending by repo.pending.collectAsStateWithLifecycle()
-    val showById = shows.associateBy { it.id }
+    val showById = remember(shows) { shows.associateBy { it.id } }
     val thisYear = remember { java.time.LocalDate.now().year }
     val hour = LocalTime.now().hour
     val greeting = when {

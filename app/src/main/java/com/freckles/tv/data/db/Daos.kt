@@ -109,9 +109,11 @@ interface EpisodeDao {
         """UPDATE episodes SET watched = :watched,
            watchedAt = CASE WHEN :watched = 1 THEN :now ELSE NULL END,
            watchCount = CASE WHEN :watched = 1 THEN MAX(watchCount, 1) ELSE 0 END
-           WHERE showId = :showId AND season = :season AND isSpecial = 0"""
+           WHERE showId = :showId AND season = :season AND isSpecial = 0
+           AND (:watched = 0 OR (airDate IS NOT NULL AND airDate <= :today))"""
     )
-    suspend fun setSeasonWatched(showId: Long, season: Int, watched: Boolean, now: Long)
+    /** Segnando come vista prende solo gli episodi già usciti; togliendo il visto li prende tutti. */
+    suspend fun setSeasonWatched(showId: Long, season: Int, watched: Boolean, now: Long, today: String)
 
     /** Segna come visti tutti gli episodi già usciti (esclusi gli special). */
     @Query(

@@ -23,6 +23,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "TMDB_API_KEY", "\"${localProps.getProperty("TMDB_API_KEY", "")}\"")
         buildConfigField("String", "IGDB_CLIENT_ID", "\"${localProps.getProperty("IGDB_CLIENT_ID", "")}\"")
         buildConfigField("String", "IGDB_CLIENT_SECRET", "\"${localProps.getProperty("IGDB_CLIENT_SECRET", "")}\"")
@@ -86,7 +87,6 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization)
     implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.media3.exoplayer)
@@ -97,4 +97,10 @@ dependencies {
     implementation(libs.datastore)
 
     testImplementation("junit:junit:4.13.2")
+    // Test sull'emulatore (database in memoria, non toccano i dati dell'app).
+    // NON usare connectedDebugAndroidTest: alla fine disinstalla l'app e ne cancella i dati. Invece:
+    //   ./gradlew installDebug installDebugAndroidTest
+    //   adb shell am instrument -w com.freckles.tv.test/androidx.test.runner.AndroidJUnitRunner
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }

@@ -57,6 +57,8 @@ data class ImportShow(
     val seasons: List<ImportSeason> = emptyList(),
     /** Voto 0-5 (assente nell'export di TV Time). */
     val rating: Int = 0,
+    /** Campanella per le nuove stagioni (assente nei backup vecchi e in TV Time). */
+    val notify: Boolean = false,
 )
 
 @Serializable
@@ -226,6 +228,7 @@ class TvTimeImporter(
                 createdAt = Instant.ofEpochMilli(sh.addedAt).toString(),
                 isFavorite = sh.isFavorite,
                 rating = sh.rating,
+                notify = sh.notifyEnabled,
                 seasons = eps.groupBy { it.season }.toSortedMap().map { (n, list) ->
                     ImportSeason(n, false, list.sortedBy { it.number }.map {
                         ImportEpisode(it.number, false, true, it.watchedAt?.let { t -> Instant.ofEpochMilli(t).toString() }, it.watchCount)
@@ -292,6 +295,7 @@ class TvTimeImporter(
                 db.showDao().update(
                     row.copy(
                         isFavorite = row.isFavorite || show.isFavorite, addedAt = added ?: row.addedAt,
+                        notifyEnabled = row.notifyEnabled || show.notify,
                         rating = if (show.rating > 0) show.rating.coerceIn(1, 5) else row.rating,
                     )
                 )

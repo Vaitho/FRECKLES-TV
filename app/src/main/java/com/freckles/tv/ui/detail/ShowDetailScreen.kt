@@ -131,6 +131,8 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
         if (current != null) {
             val list = bySeason.getValue(current)
             val seasonWatched = list.count { it.watched }
+            // Quelli non ancora usciti non si possono segnare: il pulsante considera solo gli altri.
+            val seasonMarkable = list.count { it.watched || (it.airDate != null && it.airDate <= today) }
             item(key = "seasonChips") {
                 val chipState = rememberLazyListState()
                 LaunchedEffect(current) { chipState.animateScrollToItem(bySeason.keys.indexOf(current).coerceAtLeast(0)) }
@@ -153,11 +155,11 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
                     if (current != 0) {
                         IconButton(onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            repo.setSeasonWatched(s.id, current, seasonWatched < list.size)
+                            repo.setSeasonWatched(s.id, current, seasonWatched < seasonMarkable)
                         }) {
                             Icon(
                                 Icons.Filled.DoneAll, "Segna stagione",
-                                tint = if (seasonWatched == list.size) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (seasonMarkable > 0 && seasonWatched >= seasonMarkable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

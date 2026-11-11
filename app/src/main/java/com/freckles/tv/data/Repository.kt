@@ -26,7 +26,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
+import java.util.concurrent.ConcurrentHashMap
 
 /** Dati per la pagina di anteprima di un titolo non ancora in libreria. */
 data class PreviewInfo(
@@ -213,7 +216,10 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
         )
     }
 
-    suspend fun addShowNow(tmdbId: Int): Long {
+    // L'import lavora 4 serie alla volta: due voci con lo stesso id TMDB non devono inserire la serie insieme.
+    private val showLocks = ConcurrentHashMap<Int, Mutex>()
+
+    suspend fun addShowNow(tmdbId: Int): Long = showLocks.getOrPut(tmdbId) { Mutex() }.withLock {
         shows.byTmdbId(tmdbId)?.let { return it.id }
         val d = api.tv(tmdbId)
         val rt = d.episodeRunTime.firstOrNull { it > 0 } ?: 40
@@ -228,7 +234,7 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
             )
         )
         syncEpisodes(id, d, rt)
-        return id
+        id
     }
 
     /**
@@ -332,7 +338,7 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
     }
 
     fun setSeasonWatched(showId: Long, season: Int, watched: Boolean) = launchReporting("Errore") {
-        episodes.setSeasonWatched(showId, season, watched, System.currentTimeMillis())
+        episodes.setSeasonWatched(showId, season, watched, System.currentTimeMillis(), LocalDate.now().toString())
     }
 
     /** Da "Guarda": segna visto un film del server, aggiungendolo alla libreria se manca. Non toglie mai il visto. */
