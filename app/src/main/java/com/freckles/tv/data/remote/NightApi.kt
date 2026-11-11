@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit
 data class NightVersion(val id: String, val label: String, val sizeBytes: Long)
 data class NightMovie(
     val id: String,
+    /** null se il server non ha trovato il film su TMDB. */
+    val tmdbId: Int?,
     val title: String,
     val year: Int?,
     val image: String?,
@@ -27,6 +29,7 @@ data class NightEpisode(val id: String, val num: Int, val title: String, val ima
 data class NightSeason(val n: Int, val episodes: List<NightEpisode>)
 data class NightSeries(
     val id: String,
+    val tmdbId: Int?,
     val title: String,
     val year: Int?,
     val image: String?,
@@ -75,6 +78,7 @@ class NightApi(url: String) {
             val v = m.getJSONArray("versions")
             NightMovie(
                 id = m.getString("id"),
+                tmdbId = m.optInt("tmdbId").takeIf { it > 0 },
                 title = m.getString("title"),
                 year = m.optInt("year").takeIf { it > 0 },
                 image = img(m),
@@ -92,6 +96,7 @@ class NightApi(url: String) {
             val seasons = s.getJSONArray("seasons")
             NightSeries(
                 id = s.getString("id"),
+                tmdbId = s.optInt("tmdbId").takeIf { it > 0 },
                 title = s.getString("title"),
                 year = s.optInt("year").takeIf { it > 0 },
                 image = img(s),

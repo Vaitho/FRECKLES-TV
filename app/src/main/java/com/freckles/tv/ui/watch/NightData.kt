@@ -3,6 +3,7 @@ package com.freckles.tv.ui.watch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.freckles.tv.data.Repository
 import com.freckles.tv.data.remote.NightApi
 import com.freckles.tv.data.remote.NightEpisode
 import com.freckles.tv.data.remote.NightMovie
@@ -32,6 +33,19 @@ class NightData(val api: NightApi) {
 
     suspend fun setWatched(fileIds: List<String>, watched: Boolean) {
         runCatching { fileIds.forEach { progress = progress + (it to api.setWatched(it, watched)) } }
+    }
+
+    /** Porta il "visto" di un file del server nella libreria di Freckles TV (film o episodio abbinato via TMDB). */
+    fun syncToLibrary(repo: Repository, fileId: String) {
+        movies?.firstOrNull { m -> m.versions.any { it.id == fileId } }?.let { m ->
+            m.tmdbId?.let(repo::markMovieWatchedFromServer)
+            return
+        }
+        for (s in series) for (se in s.seasons) {
+            val e = se.episodes.firstOrNull { it.id == fileId } ?: continue
+            s.tmdbId?.let { repo.markEpisodeWatchedFromServer(it, se.n, e.num) }
+            return
+        }
     }
 
     /** Film iniziati e serie da continuare, dal più recente. */

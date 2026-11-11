@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 
 /** Riproduce un file del server FrecklesNight; riprende da dove ti eri fermato e salva il progresso sul server. */
 @Composable
-fun PlayerScreen(api: NightApi, fileId: String, fromStart: Boolean, onBack: () -> Unit) {
+fun PlayerScreen(api: NightApi, fileId: String, fromStart: Boolean, onFinished: () -> Unit, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val player = remember {
         // AC3/EAC3/DTS non sono decodificati da tutti i telefoni: ripiego sul decoder software FFmpeg.
@@ -48,6 +48,7 @@ fun PlayerScreen(api: NightApi, fileId: String, fromStart: Boolean, onBack: () -
     }
 
     var failed by remember { mutableStateOf(false) }
+    var finished by remember { mutableStateOf(false) }
     DisposableEffect(player) {
         val l = object : Player.Listener { override fun onPlayerError(error: PlaybackException) { failed = true } }
         player.addListener(l)
@@ -58,6 +59,8 @@ fun PlayerScreen(api: NightApi, fileId: String, fromStart: Boolean, onBack: () -
         val dur = player.duration
         if (dur == C.TIME_UNSET || dur <= 0) return
         val pos = player.currentPosition / 1000
+        // Stessa soglia del server (92%): il titolo conta come visto anche nella libreria, una volta sola.
+        if (!finished && pos * 100 > dur / 1000 * 92) { finished = true; onFinished() }
         CoroutineScope(Dispatchers.IO).launch { runCatching { api.saveProgress(fileId, pos, dur / 1000) } }
     }
 

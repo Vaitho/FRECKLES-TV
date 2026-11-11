@@ -49,6 +49,7 @@ import com.freckles.tv.data.remote.NightEpisode
 import com.freckles.tv.data.remote.NightProgress
 import com.freckles.tv.ui.common.ExpandableText
 import com.freckles.tv.ui.common.InfoChips
+import com.freckles.tv.ui.common.LocalRepo
 import com.freckles.tv.ui.common.SolidProgress
 import com.freckles.tv.ui.common.shimmerBrush
 import com.freckles.tv.ui.detail.DetailHeader
@@ -69,6 +70,7 @@ private fun PlayButton(text: String, onClick: () -> Unit) {
 @Composable
 fun WatchMovieScreen(data: NightData, id: String, onBack: () -> Unit, onPlay: (fileId: String, fromStart: Boolean) -> Unit) {
     val scope = rememberCoroutineScope()
+    val repo = LocalRepo.current
     LaunchedEffect(data) { data.refresh() }
     val movie = data.movies?.firstOrNull { it.id == id } ?: run { Box(Modifier.fillMaxSize()); return }
     var chosen by rememberSaveable { mutableStateOf(movie.versions.first().id) }
@@ -93,7 +95,10 @@ fun WatchMovieScreen(data: NightData, id: String, onBack: () -> Unit, onPlay: (f
                     Icon(Icons.Filled.Replay, null, Modifier.size(18.dp)); Text("  Dall'inizio")
                 }
                 OutlinedButton(
-                    { scope.launch { data.setWatched(if (watched) movie.versions.map { it.id } else listOf(version.id), !watched) } },
+                    {
+                        scope.launch { data.setWatched(if (watched) movie.versions.map { it.id } else listOf(version.id), !watched) }
+                        if (!watched) data.syncToLibrary(repo, version.id)
+                    },
                     Modifier.weight(1f),
                 ) {
                     if (watched) Icon(Icons.Filled.Check, null, Modifier.size(18.dp))

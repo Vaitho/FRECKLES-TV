@@ -181,7 +181,8 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                         "play/{fid}?restart={restart}",
                         listOf(navArgument("fid") { type = NavType.StringType }, navArgument("restart") { type = NavType.BoolType; defaultValue = false }),
                     ) {
-                        PlayerScreen(night.api, it.arguments?.getString("fid").orEmpty(), it.arguments?.getBoolean("restart") == true) { nav.popBackStack() }
+                        val fid = it.arguments?.getString("fid").orEmpty()
+                        PlayerScreen(night.api, fid, it.arguments?.getBoolean("restart") == true, onFinished = { night.syncToLibrary(repo, fid) }) { nav.popBackStack() }
                     }
                     composable(Tab.Stats.route) { StatsScreen(openShow) }
                     composable("settings") { SettingsScreen { nav.popBackStack() } }

@@ -335,6 +335,24 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
         episodes.setSeasonWatched(showId, season, watched, System.currentTimeMillis())
     }
 
+    /** Da "Guarda": segna visto un film del server, aggiungendolo alla libreria se manca. Non toglie mai il visto. */
+    fun markMovieWatchedFromServer(tmdbId: Int) = launchReporting("Impossibile aggiornare la libreria") {
+        addMovieNow(tmdbId)
+        val m = movies.byTmdbId(tmdbId) ?: return@launchReporting
+        if (m.watched) return@launchReporting
+        movies.update(m.copy(watched = true, watchedAt = System.currentTimeMillis(), watchCount = maxOf(1, m.watchCount)))
+        say("${m.title} segnato come visto in libreria")
+    }
+
+    /** Da "Guarda": segna visto un episodio del server, aggiungendo la serie alla libreria se manca. */
+    fun markEpisodeWatchedFromServer(tmdbId: Int, season: Int, number: Int) = launchReporting("Impossibile aggiornare la libreria") {
+        val showId = addShowNow(tmdbId)
+        val e = episodes.find(showId, season, number) ?: return@launchReporting
+        if (e.watched) return@launchReporting
+        episodes.update(e.copy(watched = true, watchedAt = System.currentTimeMillis(), watchCount = maxOf(1, e.watchCount)))
+        say("S${season}E${number} segnato come visto in libreria")
+    }
+
     fun toggleMovieWatched(m: MovieEntity) = launchReporting("Errore") {
         movies.update(
             if (m.watched) m.copy(watched = false, watchedAt = null, watchCount = 0)
