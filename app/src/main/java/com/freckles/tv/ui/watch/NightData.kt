@@ -9,6 +9,10 @@ import com.freckles.tv.data.remote.NightEpisode
 import com.freckles.tv.data.remote.NightMovie
 import com.freckles.tv.data.remote.NightProgress
 import com.freckles.tv.data.remote.NightSeries
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 /** Libreria e progresso del server, condivisi tra la griglia Guarda e le schede di dettaglio. */
@@ -19,16 +23,30 @@ class NightData(val api: NightApi) {
     var error by mutableStateOf<String?>(null); private set
     var loading by mutableStateOf(false); private set
 
-    /** Ricarica libreria e progresso; se fallisce tiene i dati già caricati. */
-    suspend fun refresh() {
+    // Per i salvataggi del player: devono finire anche dopo che il player è stato chiuso.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /**
+     * Aggiorna il progresso (leggero). La libreria intera (tutti i titoli con trame ed episodi) si scarica
+     * solo la prima volta o con [full], cioè col "trascina per aggiornare". Se fallisce tiene i dati già caricati.
+     */
+    suspend fun refresh(full: Boolean = false) {
         if (api.base.isEmpty() || loading) return
         loading = true
         runCatching {
-            val (m, s) = api.library()
-            val p = api.progress()
-            movies = m; series = s; progress = p; error = null
+            if (full || movies == null) {
+                val (m, s) = api.library()
+                movies = m; series = s
+            }
+            progress = api.progress()
+            error = null
         }.onFailure { error = "Il server non risponde (${api.base}). Controlla che sia acceso e che il telefono sia sulla stessa rete." }
         loading = false
+    }
+
+    /** Salva la posizione sul server e tiene aggiornata la copia in memoria (secondi). */
+    fun saveProgress(fileId: String, posSec: Long, durSec: Long) {
+        scope.launch { runCatching { progress = progress + (fileId to api.saveProgress(fileId, posSec, durSec)) } }
     }
 
     suspend fun setWatched(fileIds: List<String>, watched: Boolean) {

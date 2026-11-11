@@ -52,8 +52,10 @@ private fun JSONObject.num(key: String): Double? = if (isNull(key)) null else op
 class NightApi(url: String) {
     val base = url.trim().trimEnd('/').let { if (it.isNotEmpty() && !it.startsWith("http")) "http://$it" else it }
 
-    // Timeout lungo: la prima richiesta di un sottotitolo fa estrarre le tracce al server (legge tutto il file).
-    private val http = OkHttpClient.Builder().readTimeout(10, TimeUnit.MINUTES).build()
+    // Server in LAN: se non risponde entro pochi secondi è meglio mostrare l'errore che restare in caricamento.
+    private val http = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).build()
+    // Solo per i sottotitoli: la prima richiesta fa estrarre le tracce al server, che legge tutto il file.
+    private val slowHttp = http.newBuilder().readTimeout(10, TimeUnit.MINUTES).build()
 
     private fun call(path: String, body: String? = null): String {
         val req = Request.Builder().url(base + path)
@@ -128,8 +130,8 @@ class NightApi(url: String) {
     }
 
     /** Il server considera il film visto oltre il 92%. Posizione e durata in secondi. */
-    suspend fun saveProgress(fileId: String, posSec: Long, durSec: Long) = withContext(Dispatchers.IO) {
-        call("/api/progress", JSONObject().put("id", fileId).put("pos", posSec).put("dur", durSec).toString())
+    suspend fun saveProgress(fileId: String, posSec: Long, durSec: Long): NightProgress = withContext(Dispatchers.IO) {
+        JSONObject(call("/api/progress", JSONObject().put("id", fileId).put("pos", posSec).put("dur", durSec).toString())).toProgress()
     }
 
     /** Segna un file come visto (o non visto) e restituisce il nuovo stato. */
@@ -147,6 +149,6 @@ class NightApi(url: String) {
 
     /** Scarica un sottotitolo per farlo estrarre e mettere in cache dal server. */
     suspend fun warm(url: String) = withContext(Dispatchers.IO) {
-        http.newCall(Request.Builder().url(url).build()).execute().use { it.body?.bytes() }
+        slowHttp.newCall(Request.Builder().url(url).build()).execute().use { it.isSuccessful && it.body?.bytes() != null }
     }
 }

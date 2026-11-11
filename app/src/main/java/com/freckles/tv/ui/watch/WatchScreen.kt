@@ -85,11 +85,14 @@ fun WatchScreen(
     var showSeries by rememberSaveable { mutableStateOf(false) }
     // Ogni volta che si torna qui (anche dal player) il progresso si aggiorna.
     LaunchedEffect(data) { data.refresh() }
+    var pulling by remember { mutableStateOf(false) }
 
     val movies = data.movies
+    // Ricalcolato solo quando cambiano i dati, non a ogni ridisegno.
+    val cont = remember(data.movies, data.series, data.progress) { data.continueItems() }
     PullToRefreshBox(
-        isRefreshing = data.loading && movies != null,
-        onRefresh = { scope.launch { data.refresh() } },
+        isRefreshing = pulling,
+        onRefresh = { scope.launch { pulling = true; data.refresh(full = true); pulling = false } },
         modifier = Modifier.fillMaxSize(),
     ) {
         LazyVerticalGrid(
@@ -114,13 +117,12 @@ fun WatchScreen(
             }
             when {
                 movies == null && data.error != null -> full {
-                    ErrorState(data.error!!, onRetry = { scope.launch { data.refresh() } }, onEdit = { editing = true })
+                    ErrorState(data.error!!, onRetry = { scope.launch { data.refresh(full = true) } }, onEdit = { editing = true })
                 }
                 movies == null -> items(9) {
                     Box(Modifier.aspectRatio(2f / 3f).clip(RoundedCornerShape(18.dp)).background(shimmerBrush()))
                 }
                 else -> {
-                    val cont = data.continueItems()
                     if (cont.isNotEmpty()) {
                         full { SectionTitle("Continua a guardare") }
                         full {

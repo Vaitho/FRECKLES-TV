@@ -182,7 +182,7 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                         listOf(navArgument("fid") { type = NavType.StringType }, navArgument("restart") { type = NavType.BoolType; defaultValue = false }),
                     ) {
                         val fid = it.arguments?.getString("fid").orEmpty()
-                        PlayerScreen(night.api, fid, it.arguments?.getBoolean("restart") == true, onFinished = { night.syncToLibrary(repo, fid) }) { nav.popBackStack() }
+                        PlayerScreen(night, fid, it.arguments?.getBoolean("restart") == true, onFinished = { night.syncToLibrary(repo, fid) }) { nav.popBackStack() }
                     }
                     composable(Tab.Stats.route) { StatsScreen(openShow) }
                     composable("settings") { SettingsScreen { nav.popBackStack() } }

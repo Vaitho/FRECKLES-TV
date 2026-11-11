@@ -10,36 +10,37 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.text.style.TextAlign
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.freckles.tv.data.remote.NightApi
-import kotlinx.coroutines.CoroutineScope
+import com.freckles.tv.data.remote.NightSub
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Riproduce un file del server FrecklesNight; riprende da dove ti eri fermato e salva il progresso sul server. */
 @Composable
-fun PlayerScreen(api: NightApi, fileId: String, fromStart: Boolean, onFinished: () -> Unit, onBack: () -> Unit) {
+fun PlayerScreen(data: NightData, fileId: String, fromStart: Boolean, onFinished: () -> Unit, onBack: () -> Unit) {
+    val api = data.api
     val ctx = LocalContext.current
     val player = remember {
         // AC3/EAC3/DTS non sono decodificati da tutti i telefoni: ripiego sul decoder software FFmpeg.
@@ -49,6 +50,7 @@ fun PlayerScreen(api: NightApi, fileId: String, fromStart: Boolean, onFinished: 
 
     var failed by remember { mutableStateOf(false) }
     var finished by remember { mutableStateOf(false) }
+    var lastSaved by remember { mutableStateOf(-1L) }
     DisposableEffect(player) {
         val l = object : Player.Listener { override fun onPlayerError(error: PlaybackException) { failed = true } }
         player.addListener(l)
@@ -59,28 +61,35 @@ fun PlayerScreen(api: NightApi, fileId: String, fromStart: Boolean, onFinished: 
         val dur = player.duration
         if (dur == C.TIME_UNSET || dur <= 0) return
         val pos = player.currentPosition / 1000
+        if (pos == lastSaved) return // in pausa: niente da inviare
+        lastSaved = pos
         // Stessa soglia del server (92%): il titolo conta come visto anche nella libreria, una volta sola.
         if (!finished && pos * 100 > dur / 1000 * 92) { finished = true; onFinished() }
-        CoroutineScope(Dispatchers.IO).launch { runCatching { api.saveProgress(fileId, pos, dur / 1000) } }
+        data.saveProgress(fileId, pos, dur / 1000)
     }
 
+    fun item(subs: List<NightSub>) = MediaItem.Builder()
+        .setUri(api.mediaUrl(fileId))
+        .setSubtitleConfigurations(subs.map {
+            MediaItem.SubtitleConfiguration.Builder(android.net.Uri.parse(api.subUrl(fileId, it.key)))
+                .setMimeType("text/vtt").setLanguage(it.lang.ifEmpty { null }).setLabel(it.label).build()
+        })
+        .build()
+
     LaunchedEffect(fileId) {
-        val resume = runCatching { api.progress()[fileId] }.getOrNull()
-        player.setMediaItem(MediaItem.fromUri(api.mediaUrl(fileId)), if (fromStart) 0L else (resume?.pos ?: 0) * 1000L)
+        // La posizione è già in memoria (aggiornata entrando in Guarda o nella scheda): niente richiesta in più.
+        val start = if (fromStart) 0L else (data.progress[fileId]?.pos ?: 0) * 1000L
+        val subs = runCatching { api.subtitles(fileId) }.getOrDefault(emptyList())
+        // Il primo scaricamento di un sottotitolo fa estrarre le tracce al server. Se sono già pronte arrivano subito
+        // e il video parte con i sottotitoli; altrimenti parte senza e li aggiungo dopo (un solo ricaricamento).
+        val warm = async(Dispatchers.IO) { subs.isNotEmpty() && runCatching { api.warm(api.subUrl(fileId, subs.first().key)) }.getOrDefault(false) }
+        val ready = withTimeoutOrNull(1500) { warm.await() } == true
+        player.setMediaItem(item(if (ready) subs else emptyList()), start)
         player.prepare()
         player.playWhenReady = true
-        // Sottotitoli: il primo scaricamento fa estrarre le tracce al server, quindi parto subito senza e li aggiungo dopo.
-        val subs = runCatching { api.subtitles(fileId) }.getOrDefault(emptyList())
-        if (subs.isNotEmpty() && runCatching { api.warm(api.subUrl(fileId, subs.first().key)) }.isSuccess) {
-            val item = MediaItem.Builder()
-                .setUri(api.mediaUrl(fileId))
-                .setSubtitleConfigurations(subs.map {
-                    MediaItem.SubtitleConfiguration.Builder(android.net.Uri.parse(api.subUrl(fileId, it.key)))
-                        .setMimeType("text/vtt").setLanguage(it.lang.ifEmpty { null }).setLabel(it.label).build()
-                })
-                .build()
+        if (!ready && warm.await()) {
             val playing = player.playWhenReady
-            player.setMediaItem(item, player.currentPosition)
+            player.setMediaItem(item(subs), player.currentPosition)
             player.prepare()
             player.playWhenReady = playing
         }
