@@ -31,6 +31,8 @@ data class Profile(
     val lastAutoBackup: Long? = null,
     /** Indirizzo del server FrecklesNight in LAN (es. http://192.168.1.20:8787); vuoto = non configurato. */
     val nightUrl: String = "",
+    /** Sottotitoli all'avvio di un video in Guarda: "off" | "forced" (solo le parti in lingua straniera) | "ita" | "eng". È l'ultima scelta fatta nel player. */
+    val subtitleMode: String = "forced",
 )
 
 class UserPrefs(private val context: Context) {
@@ -45,6 +47,7 @@ class UserPrefs(private val context: Context) {
         val gameFavs = stringPreferencesKey("top_game_favorites")
         val backupUri = stringPreferencesKey("auto_backup_uri")
         val nightUrl = stringPreferencesKey("night_url")
+        val subMode = stringPreferencesKey("subtitle_mode")
         val lastBackup = androidx.datastore.preferences.core.longPreferencesKey("last_auto_backup")
     }
 
@@ -61,6 +64,7 @@ class UserPrefs(private val context: Context) {
             autoBackupUri = p[K.backupUri],
             lastAutoBackup = p[K.lastBackup],
             nightUrl = p[K.nightUrl] ?: "",
+            subtitleMode = p[K.subMode] ?: "forced",
         )
     }
 
@@ -75,6 +79,7 @@ class UserPrefs(private val context: Context) {
     suspend fun setAccent(id: String) = edit { it[K.accent] = id }
     suspend fun setFavorites(list: List<String>) = edit { it[K.favs] = list.take(5).joinToString(",") }
     suspend fun setAutoBackupUri(uri: String?) = edit { if (uri == null) it.remove(K.backupUri) else it[K.backupUri] = uri }
+    suspend fun setSubtitleMode(mode: String) = edit { it[K.subMode] = mode }
     suspend fun setNightUrl(url: String) = edit { it[K.nightUrl] = url.trim() }
     suspend fun setLastAutoBackup(time: Long) = edit { it[K.lastBackup] = time }
     suspend fun setGameFavorites(list: List<String>) = edit { it[K.gameFavs] = list.take(5).joinToString(",") }

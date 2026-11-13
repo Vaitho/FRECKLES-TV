@@ -21,7 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -112,8 +112,8 @@ fun AppDrawer(profile: Profile, prefs: UserPrefs, onProfile: () -> Unit, onSetti
             HorizontalDivider(Modifier.padding(horizontal = 20.dp))
             Spacer(Modifier.height(8.dp))
             NavigationDrawerItem(
-                label = { Text("Importa ed esporta") },
-                icon = { Icon(Icons.Filled.SwapVert, null) },
+                label = { Text("Impostazioni") },
+                icon = { Icon(Icons.Filled.Settings, null) },
                 selected = false,
                 onClick = onSettings,
                 modifier = Modifier.padding(horizontal = 12.dp),

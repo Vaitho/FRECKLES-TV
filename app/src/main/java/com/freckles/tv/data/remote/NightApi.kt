@@ -41,7 +41,11 @@ data class NightSeries(
 )
 /** Posizione e durata in secondi; [time] = ultimo aggiornamento (ms), serve a trovare l'ultimo episodio guardato. */
 data class NightProgress(val pos: Int, val dur: Int, val watched: Boolean, val time: Long = 0)
-data class NightSub(val key: String, val lang: String, val label: String)
+/** [forced] = solo le battute in lingua straniera, non tutto il dialogo. */
+data class NightSub(val key: String, val lang: String, val label: String, val forced: Boolean = false)
+data class NightVideo(val codec: String, val bits: Int, val w: Int, val h: Int)
+/** Tracce di un file: sottotitoli di testo, formato del video e durata in secondi (0 se il server non la dice). */
+data class NightTracks(val subs: List<NightSub> = emptyList(), val video: NightVideo? = null, val dur: Double = 0.0)
 
 // org.json restituisce la stringa "null" per i valori null: qui diventano null veri.
 private fun JSONObject.str(key: String): String? = if (isNull(key)) null else optString(key).ifEmpty { null }
@@ -68,6 +72,8 @@ class NightApi(url: String) {
 
     fun abs(path: String?) = path?.let { if (it.startsWith("/")) base + it else it }
     fun mediaUrl(fileId: String) = "$base/media/$fileId"
+    /** Video convertito dal server in H.264 a partire da [fromSec]: per i telefoni che non decodificano l'originale. */
+    fun transcodeUrl(fileId: String, fromSec: Long) = "$base/transcode/$fileId?t=$fromSec"
     fun subUrl(fileId: String, key: String) = "$base/subs/$fileId/$key.vtt"
 
     /** Film e serie del server, in ordine alfabetico. */
@@ -139,12 +145,15 @@ class NightApi(url: String) {
         JSONObject(call("/api/progress", JSONObject().put("id", fileId).put("watched", watched).toString())).toProgress()
     }
 
-    suspend fun subtitles(fileId: String): List<NightSub> = withContext(Dispatchers.IO) {
-        val arr: JSONArray = JSONObject(call("/api/tracks/$fileId")).getJSONArray("subs")
-        List(arr.length()) { i ->
+    suspend fun tracks(fileId: String): NightTracks = withContext(Dispatchers.IO) {
+        val o = JSONObject(call("/api/tracks/$fileId"))
+        val arr: JSONArray = o.getJSONArray("subs")
+        val subs = List(arr.length()) { i ->
             val s = arr.getJSONObject(i)
-            NightSub(s.getString("key"), s.optString("lang"), s.optString("title").ifEmpty { s.optString("lang").ifEmpty { "Sottotitoli" } })
+            NightSub(s.getString("key"), s.optString("lang"), s.optString("title").ifEmpty { s.optString("lang").ifEmpty { "Sottotitoli" } }, s.optBoolean("forced"))
         }
+        val video = o.optJSONObject("video")?.let { NightVideo(it.optString("codec"), it.optInt("bits", 8), it.optInt("w"), it.optInt("h")) }
+        NightTracks(subs, video, o.optDouble("dur", 0.0))
     }
 
     /** Scarica un sottotitolo per farlo estrarre e mettere in cache dal server. */

@@ -9,6 +9,7 @@ import com.freckles.tv.data.remote.NightEpisode
 import com.freckles.tv.data.remote.NightMovie
 import com.freckles.tv.data.remote.NightProgress
 import com.freckles.tv.data.remote.NightSeries
+import com.freckles.tv.data.remote.NightSub
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -115,6 +116,44 @@ fun seriesTarget(s: NightSeries, progress: Map<String, NightProgress>): SeriesTa
         lastIdx + 1 < flat.size -> at(lastIdx + 1, Target.NEXT)
         else -> at(0, Target.AGAIN)
     }
+}
+
+/** Episodio precedente e successivo a [fileId] nella sua serie; null per i film, gli speciali e ai due estremi. */
+fun episodeNeighbors(series: List<NightSeries>, fileId: String): Pair<String?, String?> {
+    for (s in series) {
+        val ids = s.seasons.filter { it.n > 0 }.flatMap { se -> se.episodes.map { it.id } }
+        val i = ids.indexOf(fileId)
+        if (i >= 0) return ids.getOrNull(i - 1) to ids.getOrNull(i + 1)
+    }
+    return null to null
+}
+
+/**
+ * Sottotitolo da accendere all'avvio secondo l'impostazione [mode] ("off" | "forced" | "ita" | "eng"); null = nessuno.
+ * "forced" sceglie i forzati in italiano (o senza lingua dichiarata); le lingue scelgono i sottotitoli completi.
+ */
+fun defaultSub(subs: List<NightSub>, mode: String): NightSub? = when (mode) {
+    "forced" -> subs.firstOrNull { it.forced && (it.lang.isEmpty() || it.lang.startsWith("it", ignoreCase = true)) }
+    "ita", "eng" -> subs.firstOrNull { !it.forced && it.lang.startsWith(mode.take(2), ignoreCase = true) }
+    else -> null
+}
+
+/**
+ * Modalità da ricordare dopo una scelta fatta a mano nel player, o null se non c'è niente da cambiare
+ * (la selezione è quella automatica, oppure è una traccia in una lingua che non gestiamo).
+ * [selectedKey] = chiave del sottotitolo acceso, null se è una traccia non nostra; [anySelected] = c'è un sottotitolo acceso.
+ */
+fun pickedSubMode(subs: List<NightSub>, current: String, anySelected: Boolean, selectedKey: String?, selectedLang: String?): String? {
+    val chosen = subs.firstOrNull { it.key == selectedKey }
+    if (chosen == defaultSub(subs, current) && (chosen != null || !anySelected)) return null
+    val lang = chosen?.lang ?: selectedLang.orEmpty()
+    return when {
+        !anySelected -> "off"
+        chosen?.forced == true -> "forced"
+        lang.startsWith("it", ignoreCase = true) -> "ita"
+        lang.startsWith("en", ignoreCase = true) -> "eng"
+        else -> null
+    }?.takeIf { it != current }
 }
 
 val NightProgress?.resumable get() = this != null && pos > 0 && dur > 0

@@ -6,7 +6,15 @@ import com.freckles.tv.ui.detail.PersonScreen
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.navigation.NavBackStackEntry
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
@@ -30,6 +38,8 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -93,6 +103,9 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
     val night = remember(profile.nightUrl) { NightData(NightApi(profile.nightUrl)) }
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val currentTab = Tab.entries.firstOrNull { it.route == route }
+    // Mentre le barre spariscono con l'animazione mostrano ancora l'ultima scheda aperta.
+    var shownTab by remember { mutableStateOf(Tab.Home) }
+    if (currentTab != null) shownTab = currentTab
     // Telefono in orizzontale (o schermo largo): barra di navigazione laterale invece che in basso.
     val wide = LocalConfiguration.current.run { screenWidthDp > screenHeightDp }
     val goTab = { tab: Tab ->
@@ -119,14 +132,14 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             snackbarHost = { SnackbarHost(snackbar) },
             topBar = {
-                if (currentTab != null && !wide) {
+                AnimatedVisibility(currentTab != null && !wide, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                     Row(
                         Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Avatar(profile, 42.dp, onClick = { scope.launch { drawer.open() } })
                         Text(
-                            currentTab.title,
+                            shownTab.title,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(start = 14.dp),
@@ -135,7 +148,7 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                 }
             },
             bottomBar = {
-                if (currentTab != null && !wide) NavigationBar {
+                AnimatedVisibility(currentTab != null && !wide, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) { NavigationBar {
                     Tab.entries.forEach { tab ->
                         NavigationBarItem(
                             selected = route == tab.route,
@@ -144,7 +157,7 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                             label = { Text(tab.label) },
                         )
                     }
-                }
+                } }
             },
         ) { padding ->
             val openShow = { id: Long -> nav.navigate("show/$id") }
@@ -173,10 +186,30 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                     nav,
                     startDestination = Tab.Home.route,
                     modifier = Modifier.weight(1f),
-                    enterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f) },
-                    exitTransition = { fadeOut(tween(120)) },
-                    popEnterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f) },
-                    popExitTransition = { fadeOut(tween(120)) },
+                    // Come nell'app di Netflix: la scheda di un titolo sale dal basso sopra la pagina, che arretra e si scurisce;
+                    // tornando indietro riscende. Le schede principali cambiano con una dissolvenza, il player sfuma dal nero.
+                    enterTransition = {
+                        when {
+                            isPlayer(targetState) -> fadeIn(tween(350)) + scaleIn(tween(350), initialScale = 0.94f)
+                            isTab(initialState) && isTab(targetState) -> fadeIn(tween(200))
+                            else -> slideInVertically(tween(420, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200))
+                        }
+                    },
+                    exitTransition = {
+                        when {
+                            isPlayer(targetState) -> fadeOut(tween(350))
+                            isTab(initialState) && isTab(targetState) -> fadeOut(tween(200))
+                            else -> scaleOut(tween(420, easing = FastOutSlowInEasing), targetScale = 0.93f) + fadeOut(tween(420), targetAlpha = 0.4f)
+                        }
+                    },
+                    popEnterTransition = {
+                        if (isPlayer(initialState)) fadeIn(tween(350))
+                        else scaleIn(tween(380, easing = FastOutSlowInEasing), initialScale = 0.93f) + fadeIn(tween(380), initialAlpha = 0.4f)
+                    },
+                    popExitTransition = {
+                        if (isPlayer(initialState)) fadeOut(tween(350)) + scaleOut(tween(350), targetScale = 0.94f)
+                        else slideOutVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(380))
+                    },
                 ) {
                     composable(Tab.Home.route) { HomeScreen(profile, openShow, openMovie, openPreview, openGame) }
                     composable(Tab.Search.route) { SearchScreen(openShow, openMovie, openPreview, openGame, openGamePreview) }
@@ -203,7 +236,13 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                         listOf(navArgument("fid") { type = NavType.StringType }, navArgument("restart") { type = NavType.BoolType; defaultValue = false }),
                     ) {
                         val fid = it.arguments?.getString("fid").orEmpty()
-                        PlayerScreen(night, fid, it.arguments?.getBoolean("restart") == true, onFinished = { night.syncToLibrary(repo, fid) }) { nav.popBackStack() }
+                        PlayerScreen(
+                            night, fid, it.arguments?.getBoolean("restart") == true, profile.subtitleMode,
+                            onSubMode = { mode -> scope.launch { prefs.setSubtitleMode(mode) } },
+                            onFinished = { night.syncToLibrary(repo, fid) },
+                            // Cambio episodio: il nuovo player prende il posto di quello aperto, così Indietro torna alla scheda.
+                            onPlay = { next -> nav.navigate("play/$next") { popUpTo("play/{fid}?restart={restart}") { inclusive = true } } },
+                        ) { nav.popBackStack() }
                     }
                     composable(Tab.Stats.route) { StatsScreen(openShow) }
                     composable("settings") { SettingsScreen { nav.popBackStack() } }
@@ -243,3 +282,6 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
         }
     }
 }
+
+private fun isTab(e: NavBackStackEntry) = Tab.entries.any { it.route == e.destination.route }
+private fun isPlayer(e: NavBackStackEntry) = e.destination.route?.startsWith("play/") == true
