@@ -43,6 +43,8 @@ data class NightSeries(
 data class NightProgress(val pos: Int, val dur: Int, val watched: Boolean, val time: Long = 0)
 /** [forced] = solo le battute in lingua straniera, non tutto il dialogo. */
 data class NightSub(val key: String, val lang: String, val label: String, val forced: Boolean = false)
+/** Uno scaricamento in corso sul server: percentuale 0-100 e tempo rimasto ("00:12:30", vuoto se ignoto). */
+data class NightDownload(val title: String, val pct: Int, val eta: String, val series: Boolean = false, /** 0 = il server non permette di annullarlo. */ val id: Int = 0)
 data class NightVideo(val codec: String, val bits: Int, val w: Int, val h: Int)
 /** Tracce di un file: sottotitoli di testo, formato del video e durata in secondi (0 se il server non la dice). */
 data class NightTracks(val subs: List<NightSub> = emptyList(), val video: NightVideo? = null, val dur: Double = 0.0)
@@ -65,8 +67,10 @@ class NightApi(url: String) {
         val req = Request.Builder().url(base + path)
         if (body != null) req.post(body.toRequestBody("application/json".toMediaType()))
         http.newCall(req.build()).execute().use {
-            check(it.isSuccessful) { "Server: ${it.code}" }
-            return it.body?.string().orEmpty()
+            val text = it.body?.string().orEmpty()
+            // Negli errori il server spiega il motivo in {"error": "..."} (es. Radarr spento).
+            check(it.isSuccessful) { runCatching { JSONObject(text).getString("error") }.getOrNull() ?: "Server: ${it.code}" }
+            return text
         }
     }
 
@@ -143,6 +147,26 @@ class NightApi(url: String) {
     /** Segna un file come visto (o non visto) e restituisce il nuovo stato. */
     suspend fun setWatched(fileId: String, watched: Boolean): NightProgress = withContext(Dispatchers.IO) {
         JSONObject(call("/api/progress", JSONObject().put("id", fileId).put("watched", watched).toString())).toProgress()
+    }
+
+    /**
+     * Chiede al server di scaricare un titolo tramite Radarr/Sonarr. [key] = id TMDB per i film, id TVDB per le serie.
+     * true = il server lo aveva già (richiesto o presente).
+     */
+    suspend fun requestDownload(series: Boolean, key: Int): Boolean = withContext(Dispatchers.IO) {
+        val body = JSONObject().put("kind", if (series) "series" else "movie").put("key", key)
+        JSONObject(call("/api/dl/add", body.toString())).optBoolean("already")
+    }
+
+    /** Annulla uno scaricamento in corso: il server lo toglie dalla coda e smette di cercarlo. */
+    suspend fun cancelDownload(d: NightDownload): Unit = withContext(Dispatchers.IO) {
+        call("/api/dl/cancel", JSONObject().put("kind", if (d.series) "series" else "movie").put("id", d.id).toString())
+    }
+
+    /** Scaricamenti in corso sul server. */
+    suspend fun downloads(): List<NightDownload> = withContext(Dispatchers.IO) {
+        val arr = JSONArray(call("/api/dl/queue"))
+        List(arr.length()) { i -> arr.getJSONObject(i).let { NightDownload(it.optString("title"), it.optInt("pct"), it.optString("eta"), it.optString("kind") == "series", it.optInt("id")) } }
     }
 
     suspend fun tracks(fileId: String): NightTracks = withContext(Dispatchers.IO) {

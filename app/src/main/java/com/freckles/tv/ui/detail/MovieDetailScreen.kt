@@ -59,6 +59,7 @@ fun MovieDetailScreen(id: Long, onBack: () -> Unit) {
             onDelete = { confirmDelete = true },
         )
         Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            com.freckles.tv.ui.watch.DownloadButton(series = false, tmdbId = m.tmdbId)
             InfoChips(
                 listOfNotNull(m.releaseDate?.take(4), "${m.runtime} min") +
                     m.genres.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }.take(3),

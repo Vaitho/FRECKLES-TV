@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -67,6 +68,7 @@ import com.freckles.tv.ui.home.HomeScreen
 import com.freckles.tv.ui.library.LibraryScreen
 import androidx.compose.material.icons.filled.PlayCircle
 import com.freckles.tv.data.remote.NightApi
+import com.freckles.tv.ui.watch.LocalNight
 import com.freckles.tv.ui.watch.PlayerScreen
 import com.freckles.tv.ui.watch.WatchScreen
 import com.freckles.tv.ui.watch.NightData
@@ -88,7 +90,8 @@ private enum class Tab(val route: String, val label: String, val title: String, 
     Search("search", "Cerca", "Cerca", Icons.Filled.Search),
     Library("library", "Libreria", "La tua libreria", Icons.Filled.VideoLibrary),
     Watch("watch", "Guarda", "Guarda", Icons.Filled.PlayCircle),
-    Stats("stats", "Statistiche", "Statistiche", Icons.Filled.BarChart),
+    // Etichetta corta: "Statistiche" va a capo sui telefoni stretti o con il testo ingrandito.
+    Stats("stats", "Stats", "Statistiche", Icons.Filled.BarChart),
 }
 
 @Composable
@@ -154,7 +157,7 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                             selected = route == tab.route,
                             onClick = { goTab(tab) },
                             icon = { Icon(tab.icon, tab.label) },
-                            label = { Text(tab.label) },
+                            label = { Text(tab.label, maxLines = 1) },
                         )
                     }
                 } }
@@ -181,33 +184,35 @@ fun AppRoot(profile: Profile, prefs: UserPrefs) {
                 }
                 Spacer(Modifier.weight(1f))
             }
-            CompositionLocalProvider(LocalOpenPerson provides { id: Int -> nav.navigate("person/$id") }) {
+            CompositionLocalProvider(LocalOpenPerson provides { id: Int -> nav.navigate("person/$id") }, LocalNight provides night) {
                 NavHost(
                     nav,
                     startDestination = Tab.Home.route,
                     modifier = Modifier.weight(1f),
                     // Come nell'app di Netflix: la scheda di un titolo sale dal basso sopra la pagina, che arretra e si scurisce;
-                    // tornando indietro riscende. Le schede principali cambiano con una dissolvenza, il player sfuma dal nero.
+                    // tornando indietro riscende. Le schede principali cambiano con una dissolvenza.
+                    // Il player non si incrocia mai con l'altra pagina: il video è su una SurfaceView, che non segue
+                    // dissolvenze e ridimensionamenti e finiva sovrapposta alla pagina precedente.
                     enterTransition = {
                         when {
-                            isPlayer(targetState) -> fadeIn(tween(350)) + scaleIn(tween(350), initialScale = 0.94f)
+                            isPlayer(targetState) -> fadeIn(tween(250))
                             isTab(initialState) && isTab(targetState) -> fadeIn(tween(200))
                             else -> slideInVertically(tween(420, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(200))
                         }
                     },
                     exitTransition = {
                         when {
-                            isPlayer(targetState) -> fadeOut(tween(350))
+                            isPlayer(targetState) -> ExitTransition.None
                             isTab(initialState) && isTab(targetState) -> fadeOut(tween(200))
                             else -> scaleOut(tween(420, easing = FastOutSlowInEasing), targetScale = 0.93f) + fadeOut(tween(420), targetAlpha = 0.4f)
                         }
                     },
                     popEnterTransition = {
-                        if (isPlayer(initialState)) fadeIn(tween(350))
+                        if (isPlayer(initialState)) fadeIn(tween(250))
                         else scaleIn(tween(380, easing = FastOutSlowInEasing), initialScale = 0.93f) + fadeIn(tween(380), initialAlpha = 0.4f)
                     },
                     popExitTransition = {
-                        if (isPlayer(initialState)) fadeOut(tween(350)) + scaleOut(tween(350), targetScale = 0.94f)
+                        if (isPlayer(initialState)) ExitTransition.None
                         else slideOutVertically(tween(380, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(380))
                     },
                 ) {

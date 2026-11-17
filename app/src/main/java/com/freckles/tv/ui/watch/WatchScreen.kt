@@ -82,6 +82,8 @@ import androidx.compose.ui.text.input.ImeAction
 import com.freckles.tv.data.remote.NightMovie
 import com.freckles.tv.data.remote.NightSeries
 import java.text.Normalizer
+import com.freckles.tv.ui.common.LocalRepo
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -97,11 +99,14 @@ fun WatchScreen(
     onPlay: (fileId: String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val repo = LocalRepo.current
     var editing by remember { mutableStateOf(data.api.base.isEmpty()) }
     var showSeries by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     // Ogni volta che si torna qui (anche dal player) il progresso si aggiorna.
     LaunchedEffect(data) { data.refresh() }
+    // Scaricamenti chiesti al server: li ricontrollo spesso solo mentre ce n'è uno in corso.
+    LaunchedEffect(data) { while (true) { data.refreshDownloads(); delay(if (data.downloads.isEmpty()) 30_000 else 4_000) } }
     var pulling by remember { mutableStateOf(false) }
 
     val movies = data.movies
@@ -166,6 +171,10 @@ fun WatchScreen(
                         }
                     }
                     else -> {
+                        if (data.downloads.isNotEmpty()) {
+                            full { SectionTitle("In download") }
+                            full { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { data.downloads.forEach { d -> DownloadRow(d) { scope.launch { data.cancelDownload(d)?.let { msg -> repo.say("Annullamento non riuscito: $msg") } } } } } }
+                        }
                         if (cont.isNotEmpty()) {
                             full { SectionTitle("Continua a guardare") }
                             full {

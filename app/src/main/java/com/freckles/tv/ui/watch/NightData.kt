@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.freckles.tv.data.Repository
 import com.freckles.tv.data.remote.NightApi
+import com.freckles.tv.data.remote.NightDownload
 import com.freckles.tv.data.remote.NightEpisode
 import com.freckles.tv.data.remote.NightMovie
 import com.freckles.tv.data.remote.NightProgress
@@ -23,6 +24,7 @@ class NightData(val api: NightApi) {
     var progress by mutableStateOf<Map<String, NightProgress>>(emptyMap()); private set
     var error by mutableStateOf<String?>(null); private set
     var loading by mutableStateOf(false); private set
+    var downloads by mutableStateOf<List<NightDownload>>(emptyList()); private set
 
     // Per i salvataggi del player: devono finire anche dopo che il player è stato chiuso.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -43,6 +45,21 @@ class NightData(val api: NightApi) {
             error = null
         }.onFailure { error = "Il server non risponde (${api.base}). Controlla che sia acceso e che il telefono sia sulla stessa rete." }
         loading = false
+    }
+
+    /** Annulla uno scaricamento e aggiorna la lista; restituisce il motivo se non riesce. */
+    suspend fun cancelDownload(d: NightDownload): String? {
+        val error = runCatching { api.cancelDownload(d) }.exceptionOrNull()?.message
+        downloads = runCatching { api.downloads() }.getOrDefault(downloads)
+        return error
+    }
+
+    /** Scaricamenti in corso sul server; se il server non li gestisce o non risponde la lista resta vuota. */
+    suspend fun refreshDownloads() {
+        if (api.base.isEmpty()) return
+        val before = downloads.size
+        downloads = runCatching { api.downloads() }.getOrDefault(emptyList())
+        if (downloads.size < before) refresh(full = true) // uno è finito: il titolo nuovo compare nella libreria
     }
 
     /** Salva la posizione sul server e tiene aggiornata la copia in memoria (secondi). */

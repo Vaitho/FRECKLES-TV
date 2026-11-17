@@ -397,6 +397,9 @@ class Repository(private val db: AppDatabase, private val api: TmdbApi, private 
     fun setShowRating(s: ShowEntity, rating: Int) = launchReporting("Errore") { shows.update(s.copy(rating = rating.coerceIn(0, 5))) }
     fun setMovieRating(m: MovieEntity, rating: Int) = launchReporting("Errore") { movies.update(m.copy(rating = rating.coerceIn(0, 5))) }
 
+    /** Id TVDB di una serie (serve a Sonarr per scaricarla); null se TMDB non lo conosce o non risponde. */
+    suspend fun tvdbId(tmdbId: Int): Int? = runCatching { api.tv(tmdbId).externalIds?.tvdbId }.getOrNull()
+
     /** Messaggio breve mostrato nella snackbar. */
     fun say(message: String) {
         _messages.tryEmit(message)

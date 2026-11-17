@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
@@ -214,7 +215,8 @@ fun PlayerScreen(data: NightData, fileId: String, fromStart: Boolean, subMode: S
     }
 
     BackHandler(onBack = onBack)
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    // Fuori dallo schermo intero i comandi restano dentro le barre di sistema (a barre nascoste il margine è zero).
+    Box(Modifier.fillMaxSize().background(Color.Black).systemBarsPadding()) {
         AndroidView(
             factory = { PlayerView(it).apply { keepScreenOn = true; setShowSubtitleButton(true); setFullscreenButtonClickListener { on -> full = on } } },
             update = {

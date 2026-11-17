@@ -108,6 +108,7 @@ fun ShowDetailScreen(id: Long, onBack: () -> Unit) {
                 onImdb = s.imdbId?.let { { uri.openUri("https://www.imdb.com/title/$it") } },
                 onDelete = { confirmDelete = true },
             )
+            com.freckles.tv.ui.watch.DownloadButton(series = true, tmdbId = s.tmdbId, modifier = Modifier.padding(horizontal = 20.dp))
         }
         item {
             Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
